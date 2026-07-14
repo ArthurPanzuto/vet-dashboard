@@ -949,11 +949,18 @@ canvas { max-width: 100%; }
               <option value="Fêmea">Fêmea</option>
             </select>
           </div>
+          <div class="fl">
+            <label>Castrado</label>
+            <select id="paciente-castrado">
+              <option value="Não Castrado">Não Castrado</option>
+              <option value="Castrado">Castrado</option>
+            </select>
+          </div>
           <div class="fl span-2"><label>Nome do Tutor</label><input id="paciente-tutor-nome" type="text" required /></div>
           <div class="fl"><label>Telefone/WhatsApp do Tutor <span class="hint">(opcional)</span></label><input id="paciente-tutor-telefone" type="text" /></div>
           <div class="fl"><label>CPF do Tutor <span class="hint">(opcional)</span></label><input id="paciente-tutor-cpf" type="text" /></div>
           <div class="fl">
-            <label><input id="paciente-internado" type="checkbox" /> Internado</label>
+            <label><input id="paciente-internado" type="checkbox" /> Atendimento</label>
           </div>
           <div class="fl">
             <label><input id="paciente-obito" type="checkbox" /> Óbito</label>
@@ -2843,18 +2850,15 @@ DuoVet.pacientes = (function () {
 
   function statusDotsHtml(p) {
     return `${p.obito ? '<span class="status-dot status-dot--obito" title="Óbito"></span>' : ""}${
-      !p.obito && p.internado ? '<span class="status-dot status-dot--internado" title="Internado"></span>' : ""
+      !p.obito && p.internado ? '<span class="status-dot status-dot--internado" title="Atendimento"></span>' : ""
     }`;
   }
 
-  // ---- Isolamento por veterinário -------------------------------------------------
-  // Pacientes cadastrados antes desta regra (sem vetId) continuam visíveis para
-  // qualquer veterinário — só pacientes NOVOS ficam de fato isolados por quem
-  // os cadastrou. Isso evita qualquer sensação de "sumiço" de dados antigos.
+  // Todos os pacientes da organização são visíveis a qualquer veterinário
+  // logado, independente de quem os cadastrou (o campo vetId ainda é
+  // gravado na criação, só não é mais usado para filtrar visibilidade).
   function visiblePatients() {
-    const vet = DuoVet.auth.getSessionVet();
-    const vetId = vet ? vet.uid : null;
-    return DuoVet.state.getPatients().filter((p) => !p.vetId || p.vetId === vetId);
+    return DuoVet.state.getPatients();
   }
 
   function filteredGroups() {
@@ -2985,6 +2989,7 @@ DuoVet.pacientes = (function () {
     document.getElementById("modal-paciente-title").textContent = "Novo Paciente";
     document.getElementById("form-paciente").reset();
     populateRacaSelect("");
+    document.getElementById("paciente-castrado").value = "Não Castrado";
     openModal("modal-paciente");
   }
 
@@ -2997,6 +3002,7 @@ DuoVet.pacientes = (function () {
     document.getElementById("paciente-idade").value = patient.idade || "";
     document.getElementById("paciente-peso").value = patient.peso || "";
     document.getElementById("paciente-sexo").value = patient.sexo || "Macho";
+    document.getElementById("paciente-castrado").value = patient.castrado || "Não Castrado";
     document.getElementById("paciente-tutor-nome").value = patient.tutorNome;
     document.getElementById("paciente-tutor-telefone").value = patient.tutorTelefone || "";
     document.getElementById("paciente-tutor-cpf").value = patient.tutorCpf || "";
@@ -3020,6 +3026,7 @@ DuoVet.pacientes = (function () {
       idade: document.getElementById("paciente-idade").value.trim(),
       peso: parseFloat(document.getElementById("paciente-peso").value) || null,
       sexo: document.getElementById("paciente-sexo").value,
+      castrado: document.getElementById("paciente-castrado").value,
       tutorNome: document.getElementById("paciente-tutor-nome").value.trim(),
       tutorTelefone: document.getElementById("paciente-tutor-telefone").value.trim(),
       tutorCpf: document.getElementById("paciente-tutor-cpf").value.trim(),
@@ -3119,7 +3126,7 @@ DuoVet.pacientes = (function () {
       <div class="card-hd" style="flex-wrap:wrap;gap:.6rem">
         <div class="card-title"><i class="ti ti-paw"></i> ${patient.nomePet}</div>
         <div class="pac-status-badges" style="display:flex;gap:.5rem">
-          <span class="status-badge status-badge--internado${patient.internado ? " on" : ""}" data-action="internado"><i class="ti ti-building-hospital"></i> Internado</span>
+          <span class="status-badge status-badge--internado${patient.internado ? " on" : ""}" data-action="internado"><i class="ti ti-building-hospital"></i> Atendimento</span>
           <span class="status-badge status-badge--obito${patient.obito ? " on" : ""}" data-action="obito"><i class="ti ti-cross"></i> Óbito</span>
         </div>
         <button type="button" class="btn-g" id="btn-editar-cadastro"><i class="ti ti-edit"></i> Editar</button>
@@ -3131,6 +3138,7 @@ DuoVet.pacientes = (function () {
           <p class="pac-field"><span>Idade</span>${patient.idade || "—"}</p>
           <p class="pac-field"><span>Peso</span>${patient.peso ? patient.peso + " kg" : "—"}</p>
           <p class="pac-field"><span>Sexo</span>${patient.sexo || "—"}</p>
+          <p class="pac-field"><span>Castrado</span>${patient.castrado || "—"}</p>
         </div>
         <div class="pac-field-group" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
           <p class="pac-field-title"><i class="ti ti-user"></i> Tutor</p>
