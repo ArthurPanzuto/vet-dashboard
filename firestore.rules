@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Perfil global do veterinário: diz a qual organização ele pertence.
+    // Só pode ser criado se o email autenticado estiver na allowlist da
+    // organização informada — é o que impede autocadastro fora da clínica.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.orgId is string
+        && exists(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)/allowlist/$(request.auth.token.email.lower()));
+      allow update, delete: if false;
+    }
+
+    match /organizations/{orgId} {
+      // O documento da organização em si e sua allowlist nunca são lidos
+      // nem escritos pelo cliente — só editados manualmente no Console.
+      allow read, write: if false;
+
+      match /allowlist/{email} {
+        allow read, write: if false;
+      }
+
+      // Qualquer subcoleção de dados (patients, transactions, despesas,
+      // appointments, categories, eventTypes) exige que o usuário logado
+      // pertença a esta mesma organização.
+      match /{document=**} {
+        allow read, write: if request.auth != null
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
+      }
+    }
+  }
+}
