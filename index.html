@@ -401,9 +401,6 @@ canvas { max-width: 100%; }
 #auth-manage-link{margin-top:1rem;font-size:12.5px;}
 #app-connection-error{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:250;}
 
-.pac-logged-bar{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:.5rem .875rem;margin-bottom:.875rem;font-size:13px;color:var(--t2);}
-.pac-logged-bar strong{color:var(--t1);}
-
 .header-auth{display:flex;align-items:center;gap:.6rem;font-size:12.5px;color:var(--t2);margin-right:.75rem;}
 .header-auth strong{color:var(--t1);}
 
@@ -803,11 +800,6 @@ canvas { max-width: 100%; }
 
       <!-- ==================== PACIENTES ==================== -->
       <section id="tab-pacientes" class="panel">
-
-        <div class="pac-logged-bar">
-          <span><i class="ti ti-user-check"></i> Logado: <strong id="pac-logged-nome"></strong></span>
-          <button type="button" id="btn-trocar-vet" class="link-btn"><i class="ti ti-logout"></i> Trocar veterinário</button>
-        </div>
 
         <!-- Sub-view: Busca -->
         <div id="pacientes-busca" class="pac-view active">
@@ -2841,13 +2833,6 @@ DuoVet.pacientes = (function () {
     document.getElementById(id).classList.add("hidden");
   }
 
-  // ---- Barra "Logado como" -------------------------------------------------------
-  function renderLoggedBar() {
-    const vet = DuoVet.auth.getSessionVet();
-    const el = document.getElementById("pac-logged-nome");
-    if (el) el.textContent = vet ? vet.nome : "—";
-  }
-
   // ---- Busca agrupada por tutor ----------------------------------------------------
   function groupKey(patient) {
     return (patient.tutorCpf || "").trim() || patient.tutorNome.trim().toLowerCase();
@@ -2865,7 +2850,7 @@ DuoVet.pacientes = (function () {
   // os cadastrou. Isso evita qualquer sensação de "sumiço" de dados antigos.
   function visiblePatients() {
     const vet = DuoVet.auth.getSessionVet();
-    const vetId = vet ? vet.id : null;
+    const vetId = vet ? vet.uid : null;
     return DuoVet.state.getPatients().filter((p) => !p.vetId || p.vetId === vetId);
   }
 
@@ -3046,7 +3031,7 @@ DuoVet.pacientes = (function () {
       DuoVet.state.updatePatient(editingPatientId, entry);
     } else {
       const vet = DuoVet.auth.getSessionVet();
-      entry.vetId = vet ? vet.id : null;
+      entry.vetId = vet ? vet.uid : null;
       DuoVet.state.addPatient(entry);
     }
     closeNovoPacienteModal();
@@ -3421,21 +3406,11 @@ DuoVet.pacientes = (function () {
     document.getElementById("form-vermifugo").addEventListener("submit", handleSubmitVermifugo);
     document.getElementById("pac-vermifugos-tbody").addEventListener("click", handleVermifugosClick);
 
-    document.getElementById("btn-trocar-vet").addEventListener("click", () => {
-      DuoVet.auth.logout();
-      DuoVet.auth.openLoginOverlay(
-        () => renderLoggedBar(),
-        () => document.querySelector('.nav-btn[data-tab="dashboard"]').click()
-      );
-    });
-
     switchView();
-    renderLoggedBar();
     renderSearchResults();
   }
 
   function render() {
-    renderLoggedBar();
     if (currentView === "busca") renderSearchResults();
     else renderFicha();
   }
