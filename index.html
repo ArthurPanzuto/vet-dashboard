@@ -22,12 +22,12 @@
     // identificadores públicos do projeto; a segurança real vem das regras
     // do Firestore (firestore.rules), não de esconder esta configuração.
     const firebaseConfig = {
-      apiKey: "SUBSTITUA_AQUI",
-      authDomain: "SUBSTITUA_AQUI.firebaseapp.com",
-      projectId: "SUBSTITUA_AQUI",
-      storageBucket: "SUBSTITUA_AQUI.appspot.com",
-      messagingSenderId: "SUBSTITUA_AQUI",
-      appId: "SUBSTITUA_AQUI",
+      apiKey: "AIzaSyC15TYu80-V98KfOPt4Z4nd7BaNhs5kZis",
+      authDomain: "dashboard-duovet.firebaseapp.com",
+      projectId: "dashboard-duovet",
+      storageBucket: "dashboard-duovet.firebasestorage.app",
+      messagingSenderId: "706975924271",
+      appId: "1:706975924271:web:48612f4ee68c71697786da",
     };
     firebase.initializeApp(firebaseConfig);
   </script>
@@ -1595,6 +1595,7 @@ DuoVet.auth = (function () {
       if (!user) {
         sessionVet = null;
         DuoVet.state.stopSync();
+        openLoginOverlay();
         document.dispatchEvent(new CustomEvent("duovet:authchanged"));
         return;
       }
@@ -1604,6 +1605,7 @@ DuoVet.auth = (function () {
           // allowlist de nenhuma organização) — sem acesso a dado nenhum.
           sessionVet = null;
           DuoVet.state.stopSync();
+          openLoginOverlay();
           document.dispatchEvent(new CustomEvent("duovet:authchanged"));
           return;
         }

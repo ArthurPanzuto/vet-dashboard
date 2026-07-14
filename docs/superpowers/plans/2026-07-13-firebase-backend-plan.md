@@ -55,6 +55,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Isolamento por organização: verdadeiro só se o veterinário logado
+    // tiver um perfil em users/{uid} cujo orgId bate com esta organização.
+    function isMember(orgId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
+    }
+
     // Perfil global do veterinário: diz a qual organização ele pertence.
     // Só pode ser criado se o email autenticado estiver na allowlist da
     // organização informada — é o que impede autocadastro fora da clínica.
@@ -76,14 +84,20 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Qualquer subcoleção de dados (patients, transactions, despesas,
-      // appointments, categories, eventTypes) exige que o usuário logado
-      // pertença a esta mesma organização.
-      match /{document=**} {
-        allow read, write: if request.auth != null
-          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
-      }
+      // Cada subcoleção de dados é listada explicitamente (em vez de um
+      // wildcard recursivo /{document=**}): nas regras do Firestore, TODOS
+      // os "match" que casam com um caminho são avaliados em OR — um
+      // wildcard recursivo aqui dentro também casaria com /allowlist/{email}
+      // e, como a condição de isMember() pode ser verdadeira, isso venceria
+      // o "allow read, write: if false" da allowlist (regras não têm
+      // precedência por especificidade, só OR). Listar as coleções conhecidas
+      // evita esse vazamento por completo.
+      match /patients/{docId} { allow read, write: if isMember(orgId); }
+      match /transactions/{docId} { allow read, write: if isMember(orgId); }
+      match /despesas/{docId} { allow read, write: if isMember(orgId); }
+      match /appointments/{docId} { allow read, write: if isMember(orgId); }
+      match /categories/{docId} { allow read, write: if isMember(orgId); }
+      match /eventTypes/{docId} { allow read, write: if isMember(orgId); }
     }
   }
 }
