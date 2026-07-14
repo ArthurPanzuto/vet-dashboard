@@ -399,6 +399,7 @@ canvas { max-width: 100%; }
 .auth-actions{display:flex;gap:.6rem;}
 .auth-actions .btn-g,.auth-actions .btn-p{flex:1;justify-content:center;}
 #auth-manage-link{margin-top:1rem;font-size:12.5px;}
+#app-connection-error{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:250;}
 
 .pac-logged-bar{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:.5rem .875rem;margin-bottom:.875rem;font-size:13px;color:var(--t2);}
 .pac-logged-bar strong{color:var(--t1);}
@@ -1031,51 +1032,49 @@ canvas { max-width: 100%; }
     </div>
   </div>
 
-  <!-- ==================== OVERLAY: LOGIN DO VETERINÁRIO ==================== -->
-  <div id="auth-overlay" class="auth-overlay hidden">
+  <!-- ==================== OVERLAY: LOGIN OBRIGATÓRIO ==================== -->
+  <div id="auth-overlay" class="auth-overlay">
     <div class="auth-box">
-      <button type="button" id="auth-cancel-btn" class="modal-close auth-close" aria-label="Cancelar"><i class="ti ti-x"></i></button>
       <div class="auth-icon"><i class="ti ti-lock"></i></div>
-      <h3>Identificação do Veterinário</h3>
-      <p class="auth-sub">Selecione seu nome e informe a senha para acessar os prontuários.</p>
-      <form id="form-auth-login">
+      <h3>Acesso à Clínica</h3>
+      <p class="auth-sub">Entre com seu email e senha para acessar o sistema.</p>
+      <form id="form-auth-login" data-mode="login">
+        <div class="fl hidden" id="auth-nome-field">
+          <label>Nome</label>
+          <input id="auth-nome" type="text" placeholder="Ex: Dr. Fulano" />
+        </div>
+        <div class="fl hidden" id="auth-org-field">
+          <label>Código da clínica</label>
+          <input id="auth-org" type="text" placeholder="Ex: duovet" />
+        </div>
         <div class="fl">
-          <label>Veterinário</label>
-          <select id="auth-vet-select" required></select>
+          <label>Email</label>
+          <input id="auth-email" type="email" required autocomplete="username" />
         </div>
         <div class="fl">
           <label>Senha</label>
-          <input id="auth-senha" type="password" required autocomplete="off" />
+          <input id="auth-senha" type="password" required autocomplete="current-password" />
         </div>
-        <div id="auth-error" class="auth-error hidden">Senha incorreta. Tente novamente.</div>
+        <div id="auth-error" class="auth-error hidden"></div>
         <div class="auth-actions">
-          <button type="button" id="auth-cancel-link" class="btn-g">Cancelar</button>
-          <button type="submit" class="btn-p"><i class="ti ti-login"></i> Entrar</button>
+          <button type="submit" id="auth-submit-btn" class="btn-p full"><i class="ti ti-login"></i> Entrar</button>
         </div>
       </form>
-      <button type="button" id="auth-manage-link" class="link-btn">Gerenciar veterinários</button>
+      <button type="button" id="auth-toggle-link" class="link-btn">Não tem conta? Criar conta</button>
     </div>
   </div>
 
-  <!-- ==================== MODAL: GERENCIAR VETERINÁRIOS ==================== -->
-  <div id="modal-gerenciar-vets" class="modal-overlay hidden">
-    <div class="modal-box">
-      <div class="modal-hd">
-        <h3>Gerenciar Veterinários</h3>
-        <button id="modal-gerenciar-vets-close" type="button" class="modal-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
-      </div>
-      <div class="modal-body">
-        <ul id="gerenciar-vets-list" class="tag-list"></ul>
-        <h4 style="font-size:13px;font-weight:600;margin:1rem 0 .75rem">Adicionar veterinário</h4>
-        <form id="form-gerenciar-vet" class="form-grid">
-          <div class="fl"><label>Nome</label><input id="vet-nome" type="text" required placeholder="Ex: Dr. Fulano" /></div>
-          <div class="fl"><label>Senha</label><input id="vet-senha" type="text" required placeholder="Ex: 1234" /></div>
-          <div class="span-2">
-            <button type="submit" class="btn-p full"><i class="ti ti-plus"></i> Adicionar</button>
-          </div>
-        </form>
-      </div>
+  <!-- ==================== SINCRONIZAÇÃO: CARREGANDO / ERRO ==================== -->
+  <div id="app-loading-overlay" class="auth-overlay hidden">
+    <div class="auth-box">
+      <div class="auth-icon"><i class="ti ti-loader-2"></i></div>
+      <h3>Carregando...</h3>
+      <p class="auth-sub">Sincronizando os dados da clínica.</p>
     </div>
+  </div>
+  <div id="app-connection-error" class="alert alert-warn hidden">
+    <i class="ti ti-alert-triangle"></i>
+    <span>Sem conexão — verifique sua internet e recarregue a página.</span>
   </div>
 
   <!-- ==================== TOAST ==================== -->
@@ -1489,75 +1488,17 @@ DuoVet.state = (function () {
 })();
   </script>
   <script>
-// auth.js — barreira de contexto para a aba Pacientes: cada veterinário se
-// identifica antes de ver/editar prontuários. Não é segurança real (não há
-// backend), é só uma barreira para evitar edição acidental por quem não é o
-// profissional responsável. Lista de veterinários/senhas persiste em
-// localStorage separado dos dados clínicos; a sessão de login em si NUNCA é
-// persistida — vive só em memória e some ao recarregar a página.
+// auth.js — Firebase Authentication multi-organização: o app inteiro exige
+// login (email/senha). Cada usuário tem um documento em /users/{uid} com
+// { nome, email, orgId }; orgId aponta para a organização (clínica) cujos
+// dados o usuário pode ver/editar (ver DuoVet.state.startSync). Cadastro
+// exige um "código da clínica" que as Firestore Rules validam contra uma
+// allowlist — não é o cliente que decide se o cadastro é permitido.
 window.DuoVet = window.DuoVet || {};
 
 DuoVet.auth = (function () {
-  const { generateId } = DuoVet.utils;
-  const STORAGE_KEY = "duovet-vets-v1";
-
-  let vets = [
-    { id: generateId(), nome: "Dr. Antonio", senha: "1234" },
-    { id: generateId(), nome: "Dra. Iara", senha: "1234" },
-    { id: generateId(), nome: "Dr. Nag", senha: "1234" },
-  ];
-  let sessionVet = null; // { id, nome } | null — só em memória, nunca persiste
-
-  function load() {
-    let raw;
-    try {
-      raw = localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      return;
-    }
-    if (!raw) return;
-    try {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved) && saved.length) vets = saved;
-    } catch (e) {
-      console.error("DuoVet: lista de veterinários corrompida, usando padrão.", e);
-    }
-  }
-
-  function persist() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(vets));
-    } catch (e) {
-      console.error("DuoVet: não foi possível salvar a lista de veterinários.", e);
-    }
-  }
-
-  load();
-
-  function getVets() {
-    return vets.slice();
-  }
-
-  function addVet(entry) {
-    vets.push({ id: generateId(), ...entry });
-    persist();
-  }
-
-  function removeVet(id) {
-    vets = vets.filter((v) => v.id !== id);
-    persist();
-  }
-
-  function login(vetId, senha) {
-    const vet = vets.find((v) => v.id === vetId);
-    if (!vet || vet.senha !== senha) return false;
-    sessionVet = { id: vet.id, nome: vet.nome };
-    return true;
-  }
-
-  function logout() {
-    sessionVet = null;
-  }
+  let sessionVet = null; // { uid, nome, email, orgId } | null
+  let pendingOnSuccess = null;
 
   function isLoggedIn() {
     return sessionVet !== null;
@@ -1567,105 +1508,119 @@ DuoVet.auth = (function () {
     return sessionVet;
   }
 
-  // ---- UI do overlay de login -------------------------------------------------
-  let pendingOnSuccess = null;
-  let pendingOnCancel = null;
-
-  function populateVetSelect() {
-    const select = document.getElementById("auth-vet-select");
-    select.innerHTML = getVets().map((v) => `<option value="${v.id}">${v.nome}</option>`).join("");
+  function login(email, senha) {
+    return firebase.auth().signInWithEmailAndPassword(email, senha);
   }
 
-  // onCancel é opcional: quando o overlay é aberto por causa da navegação
-  // direta para "Pacientes" (aba ainda não trocou), não há nada a desfazer —
-  // só fechar o overlay já é suficiente. Já no fluxo de "Trocar veterinário"
-  // (chamado com a sessão já deslogada), onCancel devolve o usuário para uma
-  // aba que ele ainda tem permissão de ver.
-  function openLoginOverlay(onSuccess, onCancel) {
-    pendingOnSuccess = onSuccess;
-    pendingOnCancel = onCancel || null;
-    populateVetSelect();
-    document.getElementById("auth-senha").value = "";
+  function signup(nome, email, senha, signupOrgId) {
+    return firebase.auth().createUserWithEmailAndPassword(email, senha).then((cred) => {
+      return firebase.firestore().collection("users").doc(cred.user.uid).set({ nome, email, orgId: signupOrgId });
+    });
+  }
+
+  function logout() {
+    return firebase.auth().signOut();
+  }
+
+  // ---- UI do overlay de login/cadastro -------------------------------------------------
+  function openLoginOverlay(onSuccess) {
+    pendingOnSuccess = onSuccess || null;
+    const form = document.getElementById("form-auth-login");
+    form.reset();
+    form.dataset.mode = "login";
+    document.getElementById("auth-nome-field").classList.add("hidden");
+    document.getElementById("auth-org-field").classList.add("hidden");
+    document.getElementById("auth-submit-btn").textContent = "Entrar";
+    document.getElementById("auth-toggle-link").textContent = "Não tem conta? Criar conta";
     document.getElementById("auth-error").classList.add("hidden");
     document.getElementById("auth-overlay").classList.remove("hidden");
-    document.getElementById("auth-senha").focus();
+    document.getElementById("auth-email").focus();
   }
 
   function closeLoginOverlay() {
     document.getElementById("auth-overlay").classList.add("hidden");
-    pendingOnSuccess = null;
-    pendingOnCancel = null;
   }
 
-  function handleLoginSubmit(event) {
+  function showAuthError(message) {
+    const el = document.getElementById("auth-error");
+    el.textContent = message;
+    el.classList.remove("hidden");
+  }
+
+  function mapAuthError(error) {
+    if (error.code === "auth/email-already-in-use") return "Este email já tem uma conta. Tente entrar.";
+    if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") return "Email ou senha incorretos.";
+    if (error.code === "auth/weak-password") return "A senha precisa ter pelo menos 6 caracteres.";
+    if (error.code === "auth/invalid-email") return "Email inválido.";
+    if (error.code === "permission-denied" || error.code === "auth/permission-denied") return "Código da clínica inválido, ou este email não está autorizado. Fale com o administrador.";
+    return "Não foi possível concluir. Tente novamente.";
+  }
+
+  function handleAuthSubmit(event) {
     event.preventDefault();
-    const vetId = document.getElementById("auth-vet-select").value;
+    const form = document.getElementById("form-auth-login");
+    const email = document.getElementById("auth-email").value.trim();
     const senha = document.getElementById("auth-senha").value;
-    if (login(vetId, senha)) {
-      const callback = pendingOnSuccess;
-      closeLoginOverlay();
-      if (callback) callback();
+    document.getElementById("auth-error").classList.add("hidden");
+
+    if (form.dataset.mode === "signup") {
+      const nome = document.getElementById("auth-nome").value.trim();
+      const signupOrgId = document.getElementById("auth-org").value.trim().toLowerCase();
+      if (!nome || !signupOrgId) {
+        showAuthError("Preencha nome e código da clínica.");
+        return;
+      }
+      signup(nome, email, senha, signupOrgId).catch((error) => showAuthError(mapAuthError(error)));
     } else {
-      document.getElementById("auth-error").classList.remove("hidden");
+      login(email, senha).catch((error) => showAuthError(mapAuthError(error)));
     }
   }
 
-  function handleCancelLogin() {
-    const callback = pendingOnCancel;
-    closeLoginOverlay();
-    if (callback) callback();
-  }
-
-  // ---- UI de gerenciar veterinários --------------------------------------------
-  function renderVetsList() {
-    const list = document.getElementById("gerenciar-vets-list");
-    list.innerHTML = getVets()
-      .map((v) => `<li class="tag-item">${v.nome} <button type="button" class="link-btn link-danger btn-remover-vet" data-id="${v.id}">Remover</button></li>`)
-      .join("");
-  }
-
-  function handleAddVetSubmit(event) {
+  function handleToggleMode(event) {
     event.preventDefault();
-    const nome = document.getElementById("vet-nome").value.trim();
-    const senha = document.getElementById("vet-senha").value.trim();
-    if (!nome || !senha) return;
-    addVet({ nome, senha });
-    document.getElementById("form-gerenciar-vet").reset();
-    renderVetsList();
-    populateVetSelect();
-  }
-
-  function handleVetsListClick(event) {
-    const btn = event.target.closest(".btn-remover-vet");
-    if (!btn) return;
-    if (confirm("Remover este veterinário da lista?")) {
-      removeVet(btn.dataset.id);
-      renderVetsList();
-      populateVetSelect();
-    }
+    const form = document.getElementById("form-auth-login");
+    const goingToSignup = form.dataset.mode !== "signup";
+    form.dataset.mode = goingToSignup ? "signup" : "login";
+    document.getElementById("auth-nome-field").classList.toggle("hidden", !goingToSignup);
+    document.getElementById("auth-org-field").classList.toggle("hidden", !goingToSignup);
+    document.getElementById("auth-submit-btn").textContent = goingToSignup ? "Criar conta" : "Entrar";
+    document.getElementById("auth-toggle-link").textContent = goingToSignup ? "Já tem conta? Entrar" : "Não tem conta? Criar conta";
+    document.getElementById("auth-error").classList.add("hidden");
   }
 
   function init() {
-    document.getElementById("form-auth-login").addEventListener("submit", handleLoginSubmit);
-    document.getElementById("auth-cancel-btn").addEventListener("click", handleCancelLogin);
-    document.getElementById("auth-cancel-link").addEventListener("click", handleCancelLogin);
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !document.getElementById("auth-overlay").classList.contains("hidden")) {
-        handleCancelLogin();
+    document.getElementById("form-auth-login").addEventListener("submit", handleAuthSubmit);
+    document.getElementById("auth-toggle-link").addEventListener("click", handleToggleMode);
+
+    firebase.auth().onAuthStateChanged((user) => {
+      if (!user) {
+        sessionVet = null;
+        DuoVet.state.stopSync();
+        document.dispatchEvent(new CustomEvent("duovet:authchanged"));
+        return;
       }
+      firebase.firestore().collection("users").doc(user.uid).get().then((doc) => {
+        if (!doc.exists) {
+          // Conta criada no Firebase Auth mas sem perfil (não estava na
+          // allowlist de nenhuma organização) — sem acesso a dado nenhum.
+          sessionVet = null;
+          DuoVet.state.stopSync();
+          document.dispatchEvent(new CustomEvent("duovet:authchanged"));
+          return;
+        }
+        const data = doc.data();
+        sessionVet = { uid: user.uid, nome: data.nome, email: data.email, orgId: data.orgId };
+        DuoVet.state.startSync(data.orgId);
+        closeLoginOverlay();
+        document.dispatchEvent(new CustomEvent("duovet:authchanged"));
+        const callback = pendingOnSuccess;
+        pendingOnSuccess = null;
+        if (callback) callback();
+      });
     });
-    document.getElementById("auth-manage-link").addEventListener("click", () => {
-      renderVetsList();
-      document.getElementById("modal-gerenciar-vets").classList.remove("hidden");
-    });
-    document.getElementById("modal-gerenciar-vets-close").addEventListener("click", () => {
-      document.getElementById("modal-gerenciar-vets").classList.add("hidden");
-    });
-    document.getElementById("form-gerenciar-vet").addEventListener("submit", handleAddVetSubmit);
-    document.getElementById("gerenciar-vets-list").addEventListener("click", handleVetsListClick);
   }
 
-  return { getVets, addVet, removeVet, login, logout, isLoggedIn, getSessionVet, init, openLoginOverlay };
+  return { isLoggedIn, getSessionVet, logout, init, openLoginOverlay };
 })();
   </script>
   <script>
