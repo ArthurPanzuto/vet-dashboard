@@ -404,6 +404,9 @@ canvas { max-width: 100%; }
 .pac-logged-bar{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:.5rem .875rem;margin-bottom:.875rem;font-size:13px;color:var(--t2);}
 .pac-logged-bar strong{color:var(--t1);}
 
+.header-auth{display:flex;align-items:center;gap:.6rem;font-size:12.5px;color:var(--t2);margin-right:.75rem;}
+.header-auth strong{color:var(--t1);}
+
 .search-mode-pill{display:inline-flex;background:var(--card2);border-radius:8px;padding:3px;gap:2px;align-self:flex-start;}
 .smp-btn{border:none;background:transparent;color:var(--t3);font-size:12.5px;font-weight:600;padding:.4rem .75rem;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;}
 .smp-btn.active{background:var(--card);color:var(--t1);box-shadow:var(--shadow);}
@@ -461,6 +464,10 @@ canvas { max-width: 100%; }
     </nav>
 
     <div class="tn-foot">
+      <div id="header-auth" class="header-auth hidden">
+        <span>Logado: <strong id="header-auth-nome"></strong></span>
+        <button type="button" id="btn-logout" class="link-btn"><i class="ti ti-logout"></i> Sair</button>
+      </div>
       <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Alternar tema claro/escuro">
         <i class="ti ti-moon" id="theme-icon"></i>
       </button>
@@ -3727,9 +3734,9 @@ DuoVet.relatorio = (function () {
 // main.js — ponto de entrada: liga a navegação entre abas e inicializa os
 // módulos. Também centraliza a inscrição no state: qualquer mudança nos dados
 // (nova venda, serviço editado, evento agendado) recalcula todas as telas
-// que dependem daquele dado, simulando atualização "em tempo real". A aba
-// "pacientes" é a única protegida por login (DuoVet.auth) — clicar nela sem
-// sessão ativa abre o overlay de identificação em vez de trocar de aba.
+// que dependem daquele dado, propagada em tempo real pelo Firestore. O login
+// (DuoVet.auth) protege o app inteiro: sem sessão ativa, o overlay cobre
+// todas as abas até o veterinário entrar ou criar conta.
 window.DuoVet = window.DuoVet || {};
 
 (function () {
@@ -3753,23 +3760,30 @@ window.DuoVet = window.DuoVet || {};
   }
 
   function initNav() {
+    // O login agora protege o app inteiro (não só Pacientes) — todas as abas
+    // ficam livres para trocar entre si; o portão fica só na inicialização.
     document.querySelectorAll(".nav-btn[data-tab]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const target = button.dataset.tab;
-        if (target === "pacientes" && !DuoVet.auth.isLoggedIn()) {
-          DuoVet.auth.openLoginOverlay(() => {
-            switchTab("pacientes");
-            DuoVet.pacientes.render();
-          });
-          return;
-        }
-        switchTab(target);
-      });
+      button.addEventListener("click", () => switchTab(button.dataset.tab));
     });
     // Atalhos dentro do conteúdo (ex: botão do card hero) que levam a outra aba.
     document.querySelectorAll("[data-tab-link]").forEach((el) => {
       el.addEventListener("click", () => switchTab(el.dataset.tabLink));
     });
+  }
+
+  function updateAuthGate() {
+    const loggedIn = DuoVet.auth.isLoggedIn();
+    document.getElementById("header-auth").classList.toggle("hidden", !loggedIn);
+    if (loggedIn) {
+      document.getElementById("header-auth-nome").textContent = DuoVet.auth.getSessionVet().nome;
+    }
+  }
+
+  function updateSyncState() {
+    const loggedIn = DuoVet.auth.isLoggedIn();
+    document.getElementById("app-loading-overlay").classList.toggle("hidden", !loggedIn || DuoVet.state.isReady());
+    const error = DuoVet.state.getConnectionError();
+    document.getElementById("app-connection-error").classList.toggle("hidden", !loggedIn || !error);
   }
 
   function renderAll() {
@@ -3827,9 +3841,18 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.auth.init();
     DuoVet.relatorio.init();
 
+    document.getElementById("btn-logout").addEventListener("click", () => DuoVet.auth.logout());
+    document.addEventListener("duovet:authchanged", () => {
+      updateAuthGate();
+      updateSyncState();
+    });
+
     // Única inscrição central no pub/sub do state — evita cada módulo se
     // inscrever individualmente e todos ficam sincronizados entre si.
-    DuoVet.state.subscribe(renderAll);
+    DuoVet.state.subscribe(() => {
+      updateSyncState();
+      renderAll();
+    });
 
     DuoVet.dashboard.render();
     switchTab("dashboard");
