@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // form.js — aba "Nova Venda": formulário de registro de atendimento.
 // O <select> de categoria é sempre reconstruído a partir de state.js, então
 // uma categoria criada/editada na aba "Serviços" aparece aqui imediatamente

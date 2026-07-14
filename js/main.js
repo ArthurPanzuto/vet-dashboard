@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // main.js — ponto de entrada: liga a navegação entre abas e inicializa os
 // módulos. Também centraliza a inscrição no state: qualquer mudança nos dados
 // (nova venda, serviço editado, evento agendado) recalcula todas as telas

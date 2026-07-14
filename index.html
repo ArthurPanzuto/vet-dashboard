@@ -390,7 +390,6 @@ canvas { max-width: 100%; }
 .auth-overlay.hidden{opacity:0;pointer-events:none;}
 .auth-box{position:relative;width:min(360px,92vw);background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-hover);padding:1.75rem;text-align:center;transform:scale(1);transition:transform .18s ease;}
 .auth-overlay.hidden .auth-box{transform:scale(.96);}
-.auth-close{position:absolute;top:10px;right:10px;}
 .auth-icon{width:48px;height:48px;border-radius:50%;background:var(--blue-l);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto .875rem;}
 .auth-box h3{font-size:16px;margin-bottom:.375rem;}
 .auth-sub{font-size:12.5px;color:var(--t3);margin-bottom:1.125rem;line-height:1.5;}
@@ -398,7 +397,6 @@ canvas { max-width: 100%; }
 .auth-error{font-size:12.5px;color:var(--red);background:var(--red-l);border-radius:8px;padding:.5rem .75rem;margin-bottom:.75rem;}
 .auth-actions{display:flex;gap:.6rem;}
 .auth-actions .btn-g,.auth-actions .btn-p{flex:1;justify-content:center;}
-#auth-manage-link{margin-top:1rem;font-size:12.5px;}
 #app-connection-error{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:250;}
 
 .header-auth{display:flex;align-items:center;gap:.6rem;font-size:12.5px;color:var(--t2);margin-right:.75rem;}
@@ -1213,17 +1211,10 @@ DuoVet.utils = (function () {
 })();
   </script>
   <script>
-// state.js — "banco de dados" simulado da DuoVet.
-//
-// Não existe backend/API aqui: os dados vivem no localStorage do navegador
-// (chave STORAGE_KEY, como JSON). Isso é o suficiente para uma clínica usar o
-// painel no dia a dia num computador/navegador fixo — os dados sobrevivem a
-// fechar a aba, fechar o navegador e reiniciar o PC. O que NÃO persiste: dados
-// não sincronizam entre dispositivos/navegadores diferentes, e limpar o
-// histórico/cache do navegador apaga tudo. Trocar por uma API real no futuro
-// exigiria só reescrever `load`/`persist` deste arquivo, mantendo a mesma
-// "interface" (getTransactions, addTransaction, subscribe, etc.), sem tocar
-// nas telas.
+// state.js — "banco de dados" da DuoVet, agora de verdade: os dados vivem no
+// Firestore, isolados por organização (`organizations/{orgId}/...`), e cada
+// coleção é mantida em memória via `onSnapshot`, então mudanças aparecem em
+// tempo real em qualquer aba/dispositivo logado na mesma clínica.
 //
 // Categorias e tipos de evento vêm com uma configuração inicial
 // (Consulta/Cirurgia/... e Cirurgia/Retorno/Tarefa) só para servir de ponto de
@@ -1513,7 +1504,7 @@ DuoVet.auth = (function () {
 
   function signup(nome, email, senha, signupOrgId) {
     return firebase.auth().createUserWithEmailAndPassword(email, senha).then((cred) => {
-      return firebase.firestore().collection("users").doc(cred.user.uid).set({ nome, email, orgId: signupOrgId });
+      return firebase.firestore().collection("users").doc(cred.user.uid).set({ nome, email, orgId: signupOrgId }).then(() => cred.user);
     });
   }
 
@@ -1569,7 +1560,17 @@ DuoVet.auth = (function () {
         showAuthError("Preencha nome e código da clínica.");
         return;
       }
-      signup(nome, email, senha, signupOrgId).catch((error) => showAuthError(mapAuthError(error)));
+      signup(nome, email, senha, signupOrgId)
+        .then((user) => {
+          sessionVet = { uid: user.uid, nome, email, orgId: signupOrgId };
+          DuoVet.state.startSync(signupOrgId);
+          closeLoginOverlay();
+          document.dispatchEvent(new CustomEvent("duovet:authchanged"));
+          const callback = pendingOnSuccess;
+          pendingOnSuccess = null;
+          if (callback) callback();
+        })
+        .catch((error) => showAuthError(mapAuthError(error)));
     } else {
       login(email, senha).catch((error) => showAuthError(mapAuthError(error)));
     }
@@ -3758,8 +3759,8 @@ window.DuoVet = window.DuoVet || {};
 
   function updateSyncState() {
     const loggedIn = DuoVet.auth.isLoggedIn();
-    document.getElementById("app-loading-overlay").classList.toggle("hidden", !loggedIn || DuoVet.state.isReady());
     const error = DuoVet.state.getConnectionError();
+    document.getElementById("app-loading-overlay").classList.toggle("hidden", !loggedIn || !!error || DuoVet.state.isReady());
     document.getElementById("app-connection-error").classList.toggle("hidden", !loggedIn || !error);
   }
 

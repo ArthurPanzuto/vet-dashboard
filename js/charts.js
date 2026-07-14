@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // charts.js — os gráficos do Painel Principal, usando Chart.js (via CDN).
 // Instâncias ficam em variáveis de módulo para que possamos apenas atualizar os
 // dados (`chart.update()`) quando o estado muda, em vez de recriar o canvas.

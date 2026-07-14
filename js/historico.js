@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // historico.js — aba "Histórico": lista todas as vendas/atendimentos já
 // registrados, com a opção de remover um lançamento específico.
 window.DuoVet = window.DuoVet || {};

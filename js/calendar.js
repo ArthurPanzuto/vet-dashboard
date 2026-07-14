@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // calendar.js — aba "Calendário": grade mensal de eventos, com tipos de
 // evento totalmente editáveis (adicionar/remover na própria aba). Mantém
 // apenas o mês exibido como estado local; os eventos e tipos vêm sempre de

@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // pacientes.js — aba "Pacientes": prontuário clínico. Busca por nome do pet
 // ou do tutor, ficha detalhada com dados cadastrais, histórico de consultas
 // (timeline) e cartão de vacinação com alertas de dose próxima/vencida.

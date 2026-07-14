@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // state.js — "banco de dados" simulado da DuoVet.
 //
 // Não existe backend/API aqui: os dados vivem no localStorage do navegador

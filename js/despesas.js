@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // despesas.js — aba "Gastos": cadastro de despesas fixas e variáveis (aluguel,
 // internet, fornecedores, equipamentos...) que alimentam o "Gastos" do
 // gráfico "Gastos vs. Ganhos" do Painel Principal, somadas ao custo das

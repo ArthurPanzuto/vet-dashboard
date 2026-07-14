@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // relatorio.js — exportação do relatório de faturamento mensal em PDF
 // (aba Painel). Usa jsPDF + jspdf-autotable (carregados via CDN no
 // index.html) para montar um documento com cabeçalho/logo, cards de resumo

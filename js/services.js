@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // services.js — aba "Serviços": cadastro das categorias de atendimento, já
 // com valor e custo padrão (a categoria é o próprio item vendável, sem um
 // "nome de serviço" separado). Alimenta o dropdown da aba "Nova Venda".

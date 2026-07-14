@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // utils.js — funções puras de formatação e cálculo, reaproveitadas por todos os módulos.
 window.DuoVet = window.DuoVet || {};
 

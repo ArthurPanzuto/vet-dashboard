@@ -16,6 +16,7 @@ Abra `index.html` diretamente no navegador. Sem build, sem npm.
 6. Em **Firestore Database → Regras**, cole o conteúdo do arquivo `firestore.rules` deste repositório e publique.
 7. Em **Firestore Database → Dados**, crie manualmente o documento `organizations/duovet` com o campo `nome: "DuoVet"`.
 8. Dentro dele, crie a subcoleção `allowlist` com um documento para cada veterinário autorizado — o **ID do documento** é o email dele em minúsculas (ex: `antonio@suaclinica.com`); o conteúdo pode ficar vazio.
+   > **Atenção:** a allowlist só confere o email — não há verificação de posse da caixa de entrada (sem email de confirmação). Enquanto um email liberado ainda não tiver se cadastrado, qualquer pessoa que descubra/adivinhe esse endereço pode criar a conta primeiro pelo cadastro público e ganhar acesso aos dados daquela organização. Recomenda-se pedir para o veterinário se cadastrar assim que for adicionado à allowlist.
 9. Pronto — cada veterinário pode abrir o site, clicar em "Criar conta" e usar o código da clínica `duovet` + o email liberado no passo 8.
 
 ### Adicionar uma nova clínica no futuro

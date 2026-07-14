@@ -1,3 +1,4 @@
+/* DEAD CODE — não utilizado. A implementação real está inline em index.html. Mantido só como histórico. */
 // dashboard.js — cards de resumo, hero financeiro, ranking, atividade recente
 // e alertas da aba "Painel Principal". Lê sempre do state (nunca guarda sua
 // própria cópia dos dados) e delega os gráficos para charts.js.
