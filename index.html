@@ -1242,79 +1242,24 @@ window.DuoVet = window.DuoVet || {};
 
 DuoVet.state = (function () {
   const { generateId, nextPaletteVar } = DuoVet.utils;
-  const STORAGE_KEY = "duovet-data-v1";
 
-  // ---- Estado inicial (usado só se não houver nada salvo ainda) ------------
-  let categories = [
-    { id: generateId(), nome: "Consulta", colorVar: nextPaletteVar(0), valorPadrao: 0, custoPadrao: 0 },
-    { id: generateId(), nome: "Aplicação de Vacina/Medicação", colorVar: nextPaletteVar(1), valorPadrao: 0, custoPadrao: 0 },
-    { id: generateId(), nome: "Cirurgia", colorVar: nextPaletteVar(2), valorPadrao: 0, custoPadrao: 0 },
-    { id: generateId(), nome: "Venda de Remédio", colorVar: nextPaletteVar(3), valorPadrao: 0, custoPadrao: 0 },
-  ];
-  let eventTypes = [
-    { id: generateId(), nome: "Cirurgia", colorVar: "--red" },
-    { id: generateId(), nome: "Retorno", colorVar: "--blue" },
-    { id: generateId(), nome: "Tarefa Importante", colorVar: "--amber" },
-  ];
+  let db = null;
+  let orgId = null;
+
+  const COLLECTIONS = ["categories", "eventTypes", "transactions", "appointments", "despesas", "patients"];
+  let categories = [];
+  let eventTypes = [];
   let transactions = [];
   let appointments = [];
   let despesas = [];
   let patients = [];
 
-  // ---- Persistência (localStorage) -------------------------------------------
-  function load() {
-    let raw;
-    try {
-      raw = localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      return; // navegador bloqueou localStorage (ex: modo privado) — segue com o padrão em memória.
-    }
-    if (!raw) return;
-
-    try {
-      const saved = JSON.parse(raw);
-      // Datas viram string no JSON — precisam voltar a ser Date ao carregar.
-      if (Array.isArray(saved.categories)) categories = saved.categories;
-      if (Array.isArray(saved.eventTypes)) eventTypes = saved.eventTypes;
-      if (Array.isArray(saved.transactions)) {
-        transactions = saved.transactions.map((t) => ({ ...t, data: new Date(t.data) }));
-      }
-      if (Array.isArray(saved.appointments)) {
-        appointments = saved.appointments.map((a) => ({ ...a, data: new Date(a.data) }));
-      }
-      if (Array.isArray(saved.despesas)) {
-        despesas = saved.despesas.map((d) => ({ ...d, data: new Date(d.data) }));
-      }
-      if (Array.isArray(saved.patients)) {
-        patients = saved.patients.map((p) => ({
-          ...p,
-          consultas: (p.consultas || []).map((c) => ({ ...c, data: new Date(c.data) })),
-          vacinas: (p.vacinas || []).map((v) => ({
-            ...v,
-            data: new Date(v.data),
-            proximaDose: v.proximaDose ? new Date(v.proximaDose) : null,
-          })),
-          vermifugos: (p.vermifugos || []).map((v) => ({ ...v, data: new Date(v.data) })),
-        }));
-      }
-    } catch (e) {
-      console.error("DuoVet: dados salvos corrompidos, ignorando e começando do padrão.", e);
-    }
-  }
-
-  function persist() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ categories, eventTypes, transactions, appointments, despesas, patients }));
-    } catch (e) {
-      console.error("DuoVet: não foi possível salvar os dados (localStorage indisponível ou cheio).", e);
-    }
-  }
-
-  load();
-
-  // ---- Pub/Sub ---------------------------------------------------------------
+  const ready = { categories: false, eventTypes: false, transactions: false, appointments: false, despesas: false, patients: false };
+  let connectionError = null;
+  let unsubscribers = [];
   let listeners = [];
 
+  // ---- Pub/Sub ---------------------------------------------------------------
   function subscribe(callback) {
     listeners.push(callback);
     return function unsubscribe() {
@@ -1323,168 +1268,195 @@ DuoVet.state = (function () {
   }
 
   function notify() {
-    persist();
     listeners.forEach((callback) => callback());
   }
 
+  function isReady() {
+    return COLLECTIONS.every((name) => ready[name]);
+  }
+
+  function getConnectionError() {
+    return connectionError;
+  }
+
+  // ---- Firestore: sincronização em tempo real, escopada por organização ------
+  function orgCollection(name) {
+    return db.collection("organizations").doc(orgId).collection(name);
+  }
+
+  function fromFirestoreDate(value) {
+    if (!value) return value;
+    return typeof value.toDate === "function" ? value.toDate() : new Date(value);
+  }
+
+  function revivePatient(p) {
+    return {
+      ...p,
+      consultas: (p.consultas || []).map((c) => ({ ...c, data: fromFirestoreDate(c.data) })),
+      vacinas: (p.vacinas || []).map((v) => ({
+        ...v,
+        data: fromFirestoreDate(v.data),
+        proximaDose: v.proximaDose ? fromFirestoreDate(v.proximaDose) : null,
+      })),
+      vermifugos: (p.vermifugos || []).map((v) => ({ ...v, data: fromFirestoreDate(v.data) })),
+    };
+  }
+
+  async function seedIfEmpty(name, defaults) {
+    const snap = await orgCollection(name).limit(1).get();
+    if (!snap.empty) return;
+    const batch = db.batch();
+    defaults.forEach((entry) => batch.set(orgCollection(name).doc(), entry));
+    await batch.commit();
+  }
+
+  function attachCollection(name, setter, revive) {
+    const unsub = orgCollection(name).onSnapshot(
+      (snapshot) => {
+        const docs = snapshot.docs.map((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          return revive ? revive(data) : data;
+        });
+        setter(docs);
+        ready[name] = true;
+        connectionError = null;
+        notify();
+      },
+      (error) => {
+        console.error(`DuoVet: erro ao sincronizar '${name}'.`, error);
+        connectionError = "Sem conexão — verifique sua internet e recarregue a página.";
+        notify();
+      }
+    );
+    unsubscribers.push(unsub);
+  }
+
+  function startSync(newOrgId) {
+    orgId = newOrgId;
+    db = firebase.firestore();
+
+    attachCollection("categories", (docs) => { categories = docs; });
+    attachCollection("eventTypes", (docs) => { eventTypes = docs; });
+    attachCollection("transactions", (docs) => { transactions = docs; }, (t) => ({ ...t, data: fromFirestoreDate(t.data) }));
+    attachCollection("appointments", (docs) => { appointments = docs; }, (a) => ({ ...a, data: fromFirestoreDate(a.data) }));
+    attachCollection("despesas", (docs) => { despesas = docs; }, (d) => ({ ...d, data: fromFirestoreDate(d.data) }));
+    attachCollection("patients", (docs) => { patients = docs; }, revivePatient);
+
+    seedIfEmpty("categories", [
+      { nome: "Consulta", colorVar: nextPaletteVar(0), valorPadrao: 0, custoPadrao: 0 },
+      { nome: "Aplicação de Vacina/Medicação", colorVar: nextPaletteVar(1), valorPadrao: 0, custoPadrao: 0 },
+      { nome: "Cirurgia", colorVar: nextPaletteVar(2), valorPadrao: 0, custoPadrao: 0 },
+      { nome: "Venda de Remédio", colorVar: nextPaletteVar(3), valorPadrao: 0, custoPadrao: 0 },
+    ]);
+    seedIfEmpty("eventTypes", [
+      { nome: "Cirurgia", colorVar: "--red" },
+      { nome: "Retorno", colorVar: "--blue" },
+      { nome: "Tarefa Importante", colorVar: "--amber" },
+    ]);
+  }
+
+  function stopSync() {
+    unsubscribers.forEach((unsub) => unsub());
+    unsubscribers = [];
+    orgId = null;
+    categories = [];
+    eventTypes = [];
+    transactions = [];
+    appointments = [];
+    despesas = [];
+    patients = [];
+    COLLECTIONS.forEach((name) => { ready[name] = false; });
+    notify();
+  }
+
   // ---- API: categorias --------------------------------------------------------
-  function getCategories() {
-    return categories.slice();
-  }
-
-  function addCategory(entry) {
-    categories.push({ id: generateId(), colorVar: nextPaletteVar(categories.length), ...entry });
-    notify();
-  }
-
-  function updateCategory(id, entry) {
-    categories = categories.map((c) => (c.id === id ? { ...c, ...entry } : c));
-    notify();
-  }
-
-  function removeCategory(id) {
-    categories = categories.filter((c) => c.id !== id);
-    notify();
-  }
+  function getCategories() { return categories.slice(); }
+  function addCategory(entry) { orgCollection("categories").add({ colorVar: nextPaletteVar(categories.length), ...entry }); }
+  function updateCategory(id, entry) { orgCollection("categories").doc(id).update(entry); }
+  function removeCategory(id) { orgCollection("categories").doc(id).delete(); }
 
   // ---- API: tipos de evento ----------------------------------------------------
-  function getEventTypes() {
-    return eventTypes.slice();
-  }
-
-  function addEventType(nome) {
-    eventTypes.push({ id: generateId(), nome, colorVar: nextPaletteVar(eventTypes.length) });
-    notify();
-  }
-
-  function removeEventType(id) {
-    eventTypes = eventTypes.filter((t) => t.id !== id);
-    notify();
-  }
+  function getEventTypes() { return eventTypes.slice(); }
+  function addEventType(nome) { orgCollection("eventTypes").add({ nome, colorVar: nextPaletteVar(eventTypes.length) }); }
+  function removeEventType(id) { orgCollection("eventTypes").doc(id).delete(); }
 
   // ---- API: transações ---------------------------------------------------
-  function getTransactions() {
-    return transactions.slice();
-  }
-
+  function getTransactions() { return transactions.slice(); }
   function addTransaction(entry) {
-    transactions.push({
-      id: generateId(),
-      lucro: entry.valorBruto - entry.custo,
-      ...entry,
-    });
-    notify();
+    orgCollection("transactions").add({ lucro: entry.valorBruto - entry.custo, ...entry });
   }
-
-  function removeTransaction(id) {
-    transactions = transactions.filter((t) => t.id !== id);
-    notify();
-  }
+  function removeTransaction(id) { orgCollection("transactions").doc(id).delete(); }
 
   // ---- API: agenda -----------------------------------------------------------
-  function getAppointments() {
-    return appointments.slice();
-  }
-
-  function addAppointment(entry) {
-    appointments.push({ id: generateId(), ...entry });
-    notify();
-  }
-
-  function removeAppointment(id) {
-    appointments = appointments.filter((a) => a.id !== id);
-    notify();
-  }
+  function getAppointments() { return appointments.slice(); }
+  function addAppointment(entry) { orgCollection("appointments").add(entry); }
+  function removeAppointment(id) { orgCollection("appointments").doc(id).delete(); }
 
   // ---- API: despesas ---------------------------------------------------------
-  function getDespesas() {
-    return despesas.slice();
-  }
-
-  function addDespesa(entry) {
-    despesas.push({ id: generateId(), ...entry });
-    notify();
-  }
-
-  function removeDespesa(id) {
-    despesas = despesas.filter((d) => d.id !== id);
-    notify();
-  }
+  function getDespesas() { return despesas.slice(); }
+  function addDespesa(entry) { orgCollection("despesas").add(entry); }
+  function removeDespesa(id) { orgCollection("despesas").doc(id).delete(); }
 
   // ---- API: pacientes ---------------------------------------------------------
-  function getPatients() {
-    return patients.slice();
-  }
-
+  function getPatients() { return patients.slice(); }
   function addPatient(entry) {
-    patients.push({ id: generateId(), consultas: [], vacinas: [], vermifugos: [], internado: false, obito: false, ...entry });
-    notify();
+    orgCollection("patients").add({ consultas: [], vacinas: [], vermifugos: [], internado: false, obito: false, ...entry });
   }
-
-  function updatePatient(id, entry) {
-    patients = patients.map((p) => (p.id === id ? { ...p, ...entry } : p));
-    notify();
-  }
-
-  function removePatient(id) {
-    patients = patients.filter((p) => p.id !== id);
-    notify();
-  }
+  function updatePatient(id, entry) { orgCollection("patients").doc(id).update(entry); }
+  function removePatient(id) { orgCollection("patients").doc(id).delete(); }
 
   function toggleInternado(id) {
-    patients = patients.map((p) => (p.id === id ? { ...p, internado: !p.internado } : p));
-    notify();
+    const p = patients.find((p) => p.id === id);
+    if (p) orgCollection("patients").doc(id).update({ internado: !p.internado });
   }
 
   function toggleObito(id) {
-    patients = patients.map((p) => (p.id === id ? { ...p, obito: !p.obito } : p));
-    notify();
+    const p = patients.find((p) => p.id === id);
+    if (p) orgCollection("patients").doc(id).update({ obito: !p.obito });
   }
 
   function addConsulta(patientId, entry) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, consultas: [...p.consultas, { id: generateId(), ...entry }] } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ consultas: [...p.consultas, { id: generateId(), ...entry }] });
   }
 
   function removeConsulta(patientId, consultaId) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, consultas: p.consultas.filter((c) => c.id !== consultaId) } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ consultas: p.consultas.filter((c) => c.id !== consultaId) });
   }
 
   function addVacina(patientId, entry) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, vacinas: [...p.vacinas, { id: generateId(), ...entry }] } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ vacinas: [...p.vacinas, { id: generateId(), ...entry }] });
   }
 
   function removeVacina(patientId, vacinaId) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, vacinas: p.vacinas.filter((v) => v.id !== vacinaId) } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ vacinas: p.vacinas.filter((v) => v.id !== vacinaId) });
   }
 
   function addVermifugo(patientId, entry) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, vermifugos: [...p.vermifugos, { id: generateId(), ...entry }] } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ vermifugos: [...p.vermifugos, { id: generateId(), ...entry }] });
   }
 
   function removeVermifugo(patientId, vermifugoId) {
-    patients = patients.map((p) =>
-      p.id === patientId ? { ...p, vermifugos: p.vermifugos.filter((v) => v.id !== vermifugoId) } : p
-    );
-    notify();
+    const p = patients.find((p) => p.id === patientId);
+    if (!p) return;
+    orgCollection("patients").doc(patientId).update({ vermifugos: p.vermifugos.filter((v) => v.id !== vermifugoId) });
   }
 
   return {
     subscribe,
+    isReady,
+    getConnectionError,
+    startSync,
+    stopSync,
     getCategories,
     addCategory,
     updateCategory,
