@@ -23,12 +23,9 @@ service cloud.firestore {
     }
 
     match /organizations/{orgId} {
-      // O documento da organização (hoje só o campo "nome", usado no topo da
-      // tela) pode ser lido por quem pertence a ela, mas nunca escrito pelo
-      // cliente — só editado manualmente no Console. A allowlist continua
-      // totalmente bloqueada, inclusive para leitura.
-      allow read: if isMember(orgId);
-      allow write: if false;
+      // O documento da organização em si e sua allowlist nunca são lidos
+      // nem escritos pelo cliente — só editados manualmente no Console.
+      allow read, write: if false;
 
       match /allowlist/{email} {
         allow read, write: if false;
@@ -48,12 +45,6 @@ service cloud.firestore {
       match /appointments/{docId} { allow read, write: if isMember(orgId); }
       match /categories/{docId} { allow read, write: if isMember(orgId); }
       match /eventTypes/{docId} { allow read, write: if isMember(orgId); }
-
-      // Conteúdo do site institucional (duovet-site, publicado no Netlify):
-      // leitura pública porque o site não tem login nenhum (qualquer
-      // visitante precisa conseguir carregar os textos/fotos), mas só quem
-      // pertence à clínica pode editar, pela aba "Site" do painel.
-      match /site/{docId} { allow read: if true; allow write: if isMember(orgId); }
     }
   }
 }
