@@ -432,6 +432,12 @@ canvas { max-width: 100%; }
 .pac-fotos-empty{color:var(--t3);font-size:13px;padding:.5rem 0;}
 .pac-foto-modal-box{max-width:min(90vw,720px);}
 .pac-foto-lightbox-img{width:100%;max-height:75vh;object-fit:contain;border-radius:8px;display:block;}
+.site-fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;}
+.site-foto-slot{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--card2);}
+.site-foto-slot img{width:100%;height:100%;object-fit:cover;display:block;}
+.site-foto-slot .site-foto-label{position:absolute;left:0;right:0;bottom:0;padding:.35rem .5rem;font-size:11px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(17,24,39,.75));}
+.site-foto-slot .site-foto-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(17,24,39,0);opacity:0;transition:opacity .15s,background .15s;color:#fff;font-size:20px;}
+.site-foto-slot:hover .site-foto-overlay{opacity:1;background:rgba(17,24,39,.4);}
 .pac-sidebar-pet{display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid transparent;transition:background .15s,border-color .15s;}
 .pac-sidebar-pet:hover{background:var(--card2);}
 .pac-sidebar-pet.active{background:var(--blue-l);border-color:var(--blue);font-weight:600;}
@@ -465,6 +471,7 @@ canvas { max-width: 100%; }
       <button type="button" class="nav-btn" data-tab="historico"><i class="ti ti-history"></i> Histórico</button>
       <button type="button" class="nav-btn" data-tab="calendario"><i class="ti ti-calendar-event"></i> Calendário</button>
       <button type="button" class="nav-btn" data-tab="pacientes"><i class="ti ti-notes"></i> Pacientes</button>
+      <button type="button" class="nav-btn" data-tab="site"><i class="ti ti-world"></i> Site</button>
     </nav>
 
     <div class="tn-foot">
@@ -884,6 +891,90 @@ canvas { max-width: 100%; }
         </div>
       </section>
 
+      <!-- ==================== SITE ==================== -->
+      <section id="tab-site" class="panel">
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="ti ti-photo"></i> Fotos do site</div></div>
+          <div class="card-body">
+            <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">Clique numa foto pra trocar. A mudança já aparece no site publicado assim que você salvar.</p>
+            <div id="site-fotos-grid" class="site-fotos-grid"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="ti ti-typography"></i> Textos do site</div></div>
+          <div class="card-body">
+            <form id="form-site" class="form-grid">
+              <div class="span-2"><strong>Início</strong></div>
+              <div class="fl span-2">
+                <label>Selo de avaliação</label>
+                <input id="site-hero-badge" type="text" placeholder="5,0 no Google · +139 avaliações" />
+              </div>
+              <div class="fl span-2">
+                <label>Título — primeira parte</label>
+                <input id="site-hero-heading-prefix" type="text" placeholder="Há 8 anos cuidando de quem faz parte da" />
+              </div>
+              <div class="fl span-2">
+                <label>Título — destaque em vermelho</label>
+                <input id="site-hero-heading-highlight" type="text" placeholder="sua família." />
+              </div>
+              <div class="fl span-2">
+                <label>Parágrafo de apresentação</label>
+                <textarea id="site-hero-paragraph" rows="3"></textarea>
+              </div>
+
+              <div class="span-2" style="margin-top:.5rem"><strong>Quem Somos</strong></div>
+              <div class="fl span-2">
+                <label>Parágrafo 1</label>
+                <textarea id="site-about-paragraph1" rows="2"></textarea>
+              </div>
+              <div class="fl span-2">
+                <label>História (8 anos de DUO VET / 23 anos dos doutores)</label>
+                <textarea id="site-about-history" rows="2"></textarea>
+              </div>
+              <div class="fl span-2">
+                <label>Parágrafo 2 (missão)</label>
+                <textarea id="site-about-paragraph2" rows="2"></textarea>
+              </div>
+              <div class="fl span-2">
+                <label>Frase de destaque</label>
+                <input id="site-about-boldline" type="text" />
+              </div>
+
+              <div class="span-2" style="margin-top:.5rem"><strong>Contato</strong></div>
+              <div class="fl">
+                <label>Telefone</label>
+                <input id="site-contact-phone" type="text" placeholder="(11) 98181-5544" />
+              </div>
+              <div class="fl">
+                <label>Instagram</label>
+                <input id="site-contact-instagram" type="text" placeholder="@clinica_duovet" />
+              </div>
+              <div class="fl span-2">
+                <label>Endereço <span class="hint">(uma linha pra cada parte: bairro, cidade, CEP)</span></label>
+                <textarea id="site-contact-address" rows="3"></textarea>
+              </div>
+
+              <div class="span-2" style="display:flex;gap:.75rem;align-items:center">
+                <button id="site-submit" type="submit" class="btn-p"><i class="ti ti-check"></i> Salvar alterações</button>
+                <span id="site-save-msg" class="hint"></span>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="ti ti-world"></i> Site publicado</div></div>
+          <div class="card-body">
+            <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+              <a id="site-preview-open" href="https://duovet.netlify.app" target="_blank" rel="noopener" class="btn-g"><i class="ti ti-external-link"></i> Abrir em nova aba</a>
+              <button id="site-preview-refresh" type="button" class="btn-g"><i class="ti ti-refresh"></i> Atualizar prévia</button>
+            </div>
+            <iframe id="site-preview-iframe" src="https://duovet.netlify.app" style="width:100%;height:600px;border:1px solid var(--border);border-radius:10px"></iframe>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -1270,6 +1361,7 @@ DuoVet.state = (function () {
 
   let db = null;
   let orgId = null;
+  let orgName = null;
 
   const COLLECTIONS = ["categories", "eventTypes", "transactions", "appointments", "despesas", "patients"];
   let categories = [];
@@ -1302,6 +1394,10 @@ DuoVet.state = (function () {
 
   function getConnectionError() {
     return connectionError;
+  }
+
+  function getOrgName() {
+    return orgName;
   }
 
   // ---- Firestore: sincronização em tempo real, escopada por organização ------
@@ -1361,6 +1457,16 @@ DuoVet.state = (function () {
     orgId = newOrgId;
     db = firebase.firestore();
 
+    // Leitura única (não onSnapshot) do nome da organização, só pra exibir no
+    // topo da tela — não faz parte do gate de "app pronto"/loading, então uma
+    // falha aqui nunca trava o app: fica só no nome padrão "DuoVet".
+    db.collection("organizations").doc(newOrgId).get().then((doc) => {
+      orgName = (doc.exists && doc.data().nome) || null;
+      notify();
+    }).catch(() => {
+      orgName = null;
+    });
+
     attachCollection("categories", (docs) => { categories = docs; });
     attachCollection("eventTypes", (docs) => { eventTypes = docs; });
     attachCollection("transactions", (docs) => { transactions = docs; }, (t) => ({ ...t, data: fromFirestoreDate(t.data) }));
@@ -1385,6 +1491,7 @@ DuoVet.state = (function () {
     unsubscribers.forEach((unsub) => unsub());
     unsubscribers = [];
     orgId = null;
+    orgName = null;
     categories = [];
     eventTypes = [];
     transactions = [];
@@ -1494,6 +1601,7 @@ DuoVet.state = (function () {
     subscribe,
     isReady,
     getConnectionError,
+    getOrgName,
     startSync,
     stopSync,
     getCategories,
@@ -3856,6 +3964,182 @@ DuoVet.relatorio = (function () {
 })();
   </script>
   <script>
+// site.js — aba "Site": edita textos e fotos do site institucional
+// (duovet-site, publicado no Netlify). Esse conteúdo não faz parte do
+// state.js/sync multi-org do resto do app — vive em
+// organizations/{orgId}/site/*, lido também pelo próprio site público (sem
+// login nenhum) através do js/cms.js dele. Por isso fala direto com o
+// Firestore em vez de usar orgCollection() do state.js.
+window.DuoVet = window.DuoVet || {};
+
+DuoVet.site = (function () {
+  const PHOTO_SLOTS = [
+    { id: "hero", label: "Foto principal (Início)" },
+    { id: "about", label: "Quem Somos" },
+    { id: "gallery1", label: "Galeria 1" },
+    { id: "gallery2", label: "Galeria 2" },
+    { id: "gallery3", label: "Galeria 3" },
+    { id: "gallery4", label: "Galeria 4" },
+    { id: "gallery5", label: "Galeria 5" },
+    { id: "gallery6", label: "Galeria 6" },
+  ];
+
+  const TEXT_FIELDS = [
+    { id: "site-hero-badge", path: "hero.badgeText" },
+    { id: "site-hero-heading-prefix", path: "hero.headingPrefix" },
+    { id: "site-hero-heading-highlight", path: "hero.headingHighlight" },
+    { id: "site-hero-paragraph", path: "hero.paragraph" },
+    { id: "site-about-paragraph1", path: "about.paragraph1" },
+    { id: "site-about-history", path: "about.history" },
+    { id: "site-about-paragraph2", path: "about.paragraph2" },
+    { id: "site-about-boldline", path: "about.boldLine" },
+    { id: "site-contact-phone", path: "contact.phone" },
+    { id: "site-contact-instagram", path: "contact.instagram" },
+  ];
+
+  function orgId() {
+    const vet = DuoVet.auth.getSessionVet();
+    return vet && vet.orgId;
+  }
+
+  function siteCollection() {
+    return firebase.firestore().collection("organizations").doc(orgId()).collection("site");
+  }
+
+  function getPath(obj, path) {
+    return path.split(".").reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), obj);
+  }
+
+  function setPath(obj, path, value) {
+    const parts = path.split(".");
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      cur[parts[i]] = cur[parts[i]] || {};
+      cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = value;
+  }
+
+  function resizeImageFile(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+            else { width = Math.round((width * maxDim) / height); height = maxDim; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // O endereço é editado como texto simples (uma linha por parte) mas salvo
+  // como HTML com <br>, porque é assim que o site público aplica o valor
+  // (innerHTML, pra manter as quebras de linha do cartão de endereço).
+  function addressToLines(html) {
+    return (html || "").replace(/<br\s*\/?>/gi, "\n");
+  }
+  function addressToHtml(text) {
+    return (text || "").split("\n").map((l) => l.trim()).filter(Boolean).join("<br>");
+  }
+
+  let photoCache = {};
+
+  function renderFotosGrid() {
+    const grid = document.getElementById("site-fotos-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    PHOTO_SLOTS.forEach((slot) => {
+      const item = document.createElement("div");
+      item.className = "site-foto-slot";
+      item.innerHTML =
+        (photoCache[slot.id] ? `<img src="${photoCache[slot.id]}" alt="">` : "") +
+        `<div class="site-foto-overlay"><i class="ti ti-camera"></i></div>` +
+        `<div class="site-foto-label">${slot.label}</div>`;
+      item.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.addEventListener("change", async () => {
+          const file = input.files[0];
+          if (!file) return;
+          const dataUrl = await resizeImageFile(file, 1400, 0.82);
+          await siteCollection().doc("img-" + slot.id).set({ dataUrl, updatedAt: new Date() });
+          photoCache[slot.id] = dataUrl;
+          renderFotosGrid();
+        });
+        input.click();
+      });
+      grid.appendChild(item);
+    });
+  }
+
+  async function render() {
+    if (!orgId()) return;
+    const [contentDoc, ...photoDocs] = await Promise.all([
+      siteCollection().doc("content").get(),
+      ...PHOTO_SLOTS.map((slot) => siteCollection().doc("img-" + slot.id).get()),
+    ]);
+
+    const data = contentDoc.exists ? contentDoc.data() : {};
+    TEXT_FIELDS.forEach((field) => {
+      const el = document.getElementById(field.id);
+      if (el) el.value = getPath(data, field.path) || "";
+    });
+    const addressEl = document.getElementById("site-contact-address");
+    if (addressEl) addressEl.value = addressToLines(getPath(data, "contact.address"));
+
+    photoCache = {};
+    PHOTO_SLOTS.forEach((slot, i) => {
+      const doc = photoDocs[i];
+      if (doc.exists && doc.data().dataUrl) photoCache[slot.id] = doc.data().dataUrl;
+    });
+    renderFotosGrid();
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const data = {};
+    TEXT_FIELDS.forEach((field) => {
+      const el = document.getElementById(field.id);
+      setPath(data, field.path, el ? el.value.trim() : "");
+    });
+    setPath(data, "contact.address", addressToHtml(document.getElementById("site-contact-address").value));
+
+    const msg = document.getElementById("site-save-msg");
+    msg.textContent = "Salvando...";
+    try {
+      await siteCollection().doc("content").set(data, { merge: true });
+      msg.textContent = "Salvo! O site publicado já reflete a mudança.";
+    } catch (err) {
+      msg.textContent = "Erro ao salvar: " + err.message;
+    }
+    setTimeout(() => { msg.textContent = ""; }, 4000);
+  }
+
+  function init() {
+    document.getElementById("form-site").addEventListener("submit", handleSubmit);
+    document.getElementById("site-preview-refresh").addEventListener("click", () => {
+      document.getElementById("site-preview-iframe").src = "https://duovet.netlify.app/?t=" + Date.now();
+    });
+  }
+
+  return { init, render };
+})();
+  </script>
+  <script>
 // main.js — ponto de entrada: liga a navegação entre abas e inicializa os
 // módulos. Também centraliza a inscrição no state: qualquer mudança nos dados
 // (nova venda, serviço editado, evento agendado) recalcula todas as telas
@@ -3865,7 +4149,7 @@ DuoVet.relatorio = (function () {
 window.DuoVet = window.DuoVet || {};
 
 (function () {
-  const TABS = ["dashboard", "venda", "servicos", "gastos", "historico", "calendario", "pacientes"];
+  const TABS = ["dashboard", "venda", "servicos", "gastos", "historico", "calendario", "pacientes", "site"];
   const TAB_TITLES = {
     dashboard: "Painel",
     venda: "Nova Venda",
@@ -3874,6 +4158,7 @@ window.DuoVet = window.DuoVet || {};
     historico: "Histórico",
     calendario: "Calendário",
     pacientes: "Pacientes",
+    site: "Site",
   };
 
   function switchTab(target) {
@@ -3882,6 +4167,11 @@ window.DuoVet = window.DuoVet || {};
       document.getElementById(`tab-${tab}`).classList.toggle("active", tab === target);
       document.querySelectorAll(`.nav-btn[data-tab="${tab}"]`).forEach((btn) => btn.classList.toggle("active", tab === target));
     });
+    // A aba Site não usa o sync em tempo real do state.js (o conteúdo do site
+    // institucional vive em Firestore à parte) — recarrega os campos toda vez
+    // que a aba é aberta, em vez de reagir a qualquer mudança do app inteiro
+    // (o que sobrescreveria o formulário enquanto o vet ainda está digitando).
+    if (target === "site" && window.DuoVet.site) DuoVet.site.render();
   }
 
   function initNav() {
@@ -3902,6 +4192,12 @@ window.DuoVet = window.DuoVet || {};
     if (loggedIn) {
       document.getElementById("header-auth-nome").textContent = DuoVet.auth.getSessionVet().nome;
     }
+  }
+
+  function updateOrgBranding() {
+    const nome = DuoVet.state.getOrgName() || "DuoVet";
+    document.querySelector(".tn-name").textContent = nome;
+    document.title = `${nome} — Painel da Clínica`;
   }
 
   function updateSyncState() {
@@ -3963,6 +4259,7 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.historico.init();
     DuoVet.calendar.init();
     DuoVet.pacientes.init();
+    DuoVet.site.init();
     DuoVet.auth.init();
     DuoVet.relatorio.init();
 
@@ -3976,6 +4273,7 @@ window.DuoVet = window.DuoVet || {};
     // inscrever individualmente e todos ficam sincronizados entre si.
     DuoVet.state.subscribe(() => {
       updateSyncState();
+      updateOrgBranding();
       renderAll();
     });
 
