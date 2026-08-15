@@ -15,6 +15,7 @@
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-functions-compat.js"></script>
   <script>
     // ==================== CONFIGURAÇÃO DO FIREBASE — COLE AQUI ====================
     // Substitua os valores abaixo pelos do seu projeto (ver README.md, seção
@@ -374,6 +375,41 @@ tbody tr:hover td { background: var(--card2); }
 .timeline-item .ti-detail { font-size: 12.5px; color: var(--t2); margin-top: 3px; }
 .timeline-item .btn-remover-consulta { margin-top: 6px; display: inline-block; }
 
+/* ==================== MENSAGENS (WHATSAPP) ==================== */
+.msg-layout { display: grid; grid-template-columns: 300px 1fr; gap: 1rem; align-items: start; height: calc(100vh - 200px); min-height: 460px; }
+@media (max-width: 860px) { .msg-layout { grid-template-columns: 1fr; height: auto; } }
+
+.msg-conversas-card, .msg-thread-card { display: flex; flex-direction: column; height: 100%; margin-bottom: 0; overflow: hidden; }
+
+.msg-conversas-list { overflow-y: auto; flex: 1; }
+.msg-conversa-item { display: flex; align-items: center; gap: .75rem; padding: .75rem 1.125rem; border-bottom: 1px solid var(--border); cursor: pointer; }
+.msg-conversa-item:hover { background: var(--card2); }
+.msg-conversa-item.active { background: var(--blue-l); }
+.msg-conversa-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--card2); color: var(--t2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.msg-conversa-info { flex: 1; min-width: 0; }
+.msg-conversa-nome { font-size: 13.5px; font-weight: 600; color: var(--t1); }
+.msg-conversa-preview { font-size: 12px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-conversa-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.msg-conversa-hora { font-size: 10.5px; color: var(--t3); }
+.msg-conversa-badge { background: var(--green); color: #06240f; font-size: 10.5px; font-weight: 700; border-radius: 20px; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+.msg-thread-header { padding: .875rem 1.125rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.msg-thread-nome { font-size: 13.5px; font-weight: 600; color: var(--t1); display: flex; align-items: center; gap: 7px; }
+.msg-window-badge { font-size: 11px; font-weight: 600; padding: .3rem .6rem; border-radius: 20px; }
+.msg-window-badge.open { background: var(--green-l); color: var(--green); }
+.msg-window-badge.closed { background: var(--amber-l); color: var(--amber); }
+
+.msg-thread-messages { flex: 1; overflow-y: auto; padding: 1rem 1.125rem; display: flex; flex-direction: column; gap: .5rem; }
+.msg-bubble { max-width: 70%; padding: .5rem .75rem; border-radius: 12px; font-size: 13.5px; line-height: 1.4; }
+.msg-bubble .msg-bubble-hora { font-size: 10px; margin-top: 3px; opacity: .65; }
+.msg-bubble--in { align-self: flex-start; background: var(--card2); color: var(--t1); border-bottom-left-radius: 3px; }
+.msg-bubble--out { align-self: flex-end; background: var(--blue-l); color: var(--t1); border-bottom-right-radius: 3px; }
+.msg-bubble--failed { border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); }
+
+.msg-send-form { display: flex; gap: .625rem; padding: .875rem 1.125rem; border-top: 1px solid var(--border); }
+.msg-send-form input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: 0 .9rem; height: 40px; font-size: 13.5px; background: var(--card2); color: var(--t1); outline: none; }
+.msg-send-form input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-l); }
+
 .alert-danger { background: var(--red-l); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); color: var(--red); }
 .alert-caution { background: var(--amber-l); border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent); color: var(--amber); }
 
@@ -465,6 +501,7 @@ canvas { max-width: 100%; }
       <button type="button" class="nav-btn" data-tab="historico"><i class="ti ti-history"></i> Histórico</button>
       <button type="button" class="nav-btn" data-tab="calendario"><i class="ti ti-calendar-event"></i> Calendário</button>
       <button type="button" class="nav-btn" data-tab="pacientes"><i class="ti ti-notes"></i> Pacientes</button>
+      <button type="button" class="nav-btn" data-tab="mensagens"><i class="ti ti-brand-whatsapp"></i> Mensagens</button>
     </nav>
 
     <div class="tn-foot">
@@ -884,6 +921,26 @@ canvas { max-width: 100%; }
         </div>
       </section>
 
+      <!-- ==================== MENSAGENS (WHATSAPP) ==================== -->
+      <section id="tab-mensagens" class="panel">
+        <div class="msg-layout">
+          <div class="card msg-conversas-card">
+            <div class="card-hd">
+              <div class="card-title"><i class="ti ti-brand-whatsapp"></i> Conversas</div>
+            </div>
+            <div id="msg-conversas-list" class="msg-conversas-list"></div>
+          </div>
+          <div class="card msg-thread-card">
+            <div id="msg-thread-header" class="msg-thread-header"></div>
+            <div id="msg-thread-messages" class="msg-thread-messages"></div>
+            <form id="msg-send-form" class="msg-send-form hidden">
+              <input id="msg-send-input" type="text" placeholder="Digite uma mensagem..." autocomplete="off" />
+              <button type="submit" class="btn-p"><i class="ti ti-send"></i></button>
+            </form>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -1224,6 +1281,22 @@ DuoVet.utils = (function () {
     return `${value.toFixed(decimals)}%`;
   }
 
+  function formatTime(date) {
+    return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
+  }
+
+  // Normaliza um telefone brasileiro para dígitos puros com DDI 55 —
+  // mesma lógica replicada em functions/index.js (mantenha as duas em sincronia).
+  // Usada para casar o número recebido pela Meta com o `tutorTelefone` (texto
+  // livre) salvo nos pacientes, e como ID do documento de conversa no Firestore.
+  function normalizePhone(raw) {
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("55")) return digits;
+    if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+    return digits;
+  }
+
   return {
     WEEKDAY_LABELS,
     MONTH_LABELS_SHORT,
@@ -1235,6 +1308,8 @@ DuoVet.utils = (function () {
     formatDate,
     formatDateLong,
     formatPercent,
+    formatTime,
+    normalizePhone,
     startOfDay,
     addDays,
     addMonths,
@@ -1271,6 +1346,10 @@ DuoVet.state = (function () {
   let db = null;
   let orgId = null;
 
+  // "conversations" (WhatsApp) fica de fora de COLLECTIONS de propósito: essa
+  // coleção só funciona depois que o backend (Cloud Functions + regras do
+  // Firestore, ver README) for implantado, e uma falha ali não pode travar
+  // o carregamento do resto do app enquanto isso não acontece.
   const COLLECTIONS = ["categories", "eventTypes", "transactions", "appointments", "despesas", "patients"];
   let categories = [];
   let eventTypes = [];
@@ -1278,6 +1357,7 @@ DuoVet.state = (function () {
   let appointments = [];
   let despesas = [];
   let patients = [];
+  let conversations = [];
 
   const ready = { categories: false, eventTypes: false, transactions: false, appointments: false, despesas: false, patients: false };
   let connectionError = null;
@@ -1357,6 +1437,31 @@ DuoVet.state = (function () {
     unsubscribers.push(unsub);
   }
 
+  // Sincronização à parte de "conversations" (WhatsApp): propositalmente não
+  // usa `ready`/`connectionError` (não faz parte de COLLECTIONS) — enquanto o
+  // backend do WhatsApp não estiver implantado (ver README), a leitura falha
+  // por permissão, mas isso não pode travar nem exibir erro de "sem conexão"
+  // para o resto do app. A aba Mensagens simplesmente fica vazia até lá.
+  function attachConversations() {
+    const unsub = orgCollection("conversations").onSnapshot(
+      (snapshot) => {
+        conversations = snapshot.docs.map((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          return {
+            ...data,
+            lastMessageAt: data.lastMessageAt ? fromFirestoreDate(data.lastMessageAt) : null,
+            windowExpiresAt: data.windowExpiresAt ? fromFirestoreDate(data.windowExpiresAt) : null,
+          };
+        });
+        notify();
+      },
+      (error) => {
+        console.warn("DuoVet: 'conversations' (WhatsApp) indisponível — backend ainda não configurado? Ver README.", error);
+      }
+    );
+    unsubscribers.push(unsub);
+  }
+
   function startSync(newOrgId) {
     orgId = newOrgId;
     db = firebase.firestore();
@@ -1367,6 +1472,7 @@ DuoVet.state = (function () {
     attachCollection("appointments", (docs) => { appointments = docs; }, (a) => ({ ...a, data: fromFirestoreDate(a.data) }));
     attachCollection("despesas", (docs) => { despesas = docs; }, (d) => ({ ...d, data: fromFirestoreDate(d.data) }));
     attachCollection("patients", (docs) => { patients = docs; }, revivePatient);
+    attachConversations();
 
     seedIfEmpty("categories", [
       { nome: "Consulta", colorVar: nextPaletteVar(0), valorPadrao: 0, custoPadrao: 0 },
@@ -1391,8 +1497,49 @@ DuoVet.state = (function () {
     appointments = [];
     despesas = [];
     patients = [];
+    conversations = [];
     COLLECTIONS.forEach((name) => { ready[name] = false; });
     notify();
+  }
+
+  // ---- API: mensagens (WhatsApp) ----------------------------------------------
+  // Conversas/mensagens são criadas e escritas só pelas Cloud Functions (Admin
+  // SDK, ignora as regras do Firestore) — o cliente aqui só lê e envia via as
+  // callables abaixo. Ver functions/index.js.
+  function getConversations() {
+    return conversations.slice().sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+  }
+
+  // Listener à parte (não faz parte do attachCollection/unsubscribers globais):
+  // é aberto sob demanda quando uma conversa é selecionada e encerrado pelo
+  // chamador (DuoVet.mensagens) ao trocar de conversa ou sair da aba.
+  function attachConversationMessages(conversationId, setter) {
+    return orgCollection("conversations")
+      .doc(conversationId)
+      .collection("messages")
+      .orderBy("timestamp")
+      .onSnapshot(
+        (snapshot) => {
+          setter(snapshot.docs.map((doc) => {
+            const data = { id: doc.id, ...doc.data() };
+            return { ...data, timestamp: data.timestamp ? fromFirestoreDate(data.timestamp) : null };
+          }));
+        },
+        (error) => console.error("DuoVet: erro ao sincronizar mensagens.", error)
+      );
+  }
+
+  function markConversationRead(conversationId) {
+    return orgCollection("conversations").doc(conversationId).update({ unreadCount: 0 });
+  }
+
+  function startWhatsappConversation(tutorTelefone, tutorNome) {
+    return firebase.functions().httpsCallable("startConversation")({ tutorTelefone, tutorNome })
+      .then((result) => result.data.conversationId);
+  }
+
+  function sendWhatsappMessage(conversationId, text) {
+    return firebase.functions().httpsCallable("sendWhatsappMessage")({ conversationId, text });
   }
 
   // ---- API: categorias --------------------------------------------------------
@@ -1526,6 +1673,11 @@ DuoVet.state = (function () {
     removeVermifugo,
     addFoto,
     removeFoto,
+    getConversations,
+    attachConversationMessages,
+    markConversationRead,
+    startWhatsappConversation,
+    sendWhatsappMessage,
   };
 })();
   </script>
@@ -3189,11 +3341,22 @@ DuoVet.pacientes = (function () {
         <div class="pac-field-group" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
           <p class="pac-field-title"><i class="ti ti-user"></i> Tutor</p>
           <p class="pac-field"><span>Nome</span>${patient.tutorNome}</p>
-          <p class="pac-field"><span>Telefone</span>${patient.tutorTelefone || "—"}</p>
+          <p class="pac-field"><span>Telefone</span>${patient.tutorTelefone || "—"}${
+            patient.tutorTelefone
+              ? ` <button type="button" class="link-btn" id="btn-tutor-whatsapp" style="color:var(--green)" title="Abrir conversa no WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>`
+              : ""
+          }</p>
           <p class="pac-field"><span>CPF</span>${patient.tutorCpf || "—"}</p>
         </div>
       </div>`;
     document.getElementById("btn-editar-cadastro").addEventListener("click", () => openEditarPacienteModal(patient));
+    const btnTutorWhatsapp = panel.querySelector("#btn-tutor-whatsapp");
+    if (btnTutorWhatsapp) {
+      btnTutorWhatsapp.addEventListener("click", () => {
+        document.querySelector('.nav-btn[data-tab="mensagens"]').click();
+        DuoVet.mensagens.openConversationForTutor(patient.tutorTelefone, patient.tutorNome);
+      });
+    }
     panel.querySelector('[data-action="internado"]').addEventListener("click", () => {
       DuoVet.state.toggleInternado(patient.id);
     });
@@ -3569,6 +3732,164 @@ DuoVet.pacientes = (function () {
 })();
   </script>
   <script>
+// mensagens.js — aba "Mensagens": lista de conversas de WhatsApp e thread
+// ativa, sincronizadas em tempo real via DuoVet.state (conversas) e um
+// listener próprio por conversa selecionada (mensagens, subcoleção). Envio
+// e criação de conversa passam pelas Cloud Functions sendWhatsappMessage/
+// startConversation (ver functions/index.js) — o cliente nunca fala
+// diretamente com a Graph API da Meta.
+window.DuoVet = window.DuoVet || {};
+
+DuoVet.mensagens = (function () {
+  const { formatTime, normalizePhone } = DuoVet.utils;
+
+  let selectedConversationId = null;
+  let messages = [];
+  let messagesUnsub = null;
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    document.getElementById("toast-text").textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => toast.classList.remove("show"), 2800);
+  }
+
+  function initials(name) {
+    if (!name) return "?";
+    return name.trim().charAt(0).toUpperCase();
+  }
+
+  function selectConversation(conversationId) {
+    if (conversationId === selectedConversationId) return;
+    if (messagesUnsub) { messagesUnsub(); messagesUnsub = null; }
+
+    selectedConversationId = conversationId;
+    messages = [];
+    messagesUnsub = DuoVet.state.attachConversationMessages(conversationId, (docs) => {
+      messages = docs;
+      renderThread();
+    });
+    DuoVet.state.markConversationRead(conversationId);
+    render();
+  }
+
+  function renderList() {
+    const list = document.getElementById("msg-conversas-list");
+    if (!list) return;
+    const conversations = DuoVet.state.getConversations();
+
+    list.innerHTML = conversations.length
+      ? conversations
+          .map((c) => `
+        <div class="msg-conversa-item${c.id === selectedConversationId ? " active" : ""}" data-id="${c.id}">
+          <div class="msg-conversa-avatar">${initials(c.tutorNome)}</div>
+          <div class="msg-conversa-info">
+            <div class="msg-conversa-nome">${c.tutorNome || c.tutorTelefone}</div>
+            <div class="msg-conversa-preview">${c.lastMessage || ""}</div>
+          </div>
+          <div class="msg-conversa-meta">
+            ${c.lastMessageAt ? `<div class="msg-conversa-hora">${formatTime(c.lastMessageAt)}</div>` : ""}
+            ${c.unreadCount ? `<div class="msg-conversa-badge">${c.unreadCount}</div>` : ""}
+          </div>
+        </div>`)
+          .join("")
+      : '<div class="empty"><i class="ti ti-brand-whatsapp"></i><p>Nenhuma conversa ainda.</p></div>';
+
+    list.querySelectorAll(".msg-conversa-item").forEach((el) => {
+      el.addEventListener("click", () => selectConversation(el.dataset.id));
+    });
+  }
+
+  function currentConversation() {
+    return DuoVet.state.getConversations().find((c) => c.id === selectedConversationId);
+  }
+
+  function renderHeader() {
+    const header = document.getElementById("msg-thread-header");
+    const form = document.getElementById("msg-send-form");
+    if (!header || !form) return;
+    const conversation = currentConversation();
+
+    if (!conversation) {
+      header.innerHTML = '<div class="msg-thread-nome"><i class="ti ti-message-circle"></i> Selecione uma conversa</div>';
+      form.classList.add("hidden");
+      return;
+    }
+
+    const withinWindow = conversation.windowExpiresAt && conversation.windowExpiresAt > new Date();
+    header.innerHTML = `
+      <div class="msg-thread-nome"><i class="ti ti-user"></i> ${conversation.tutorNome || conversation.tutorTelefone}</div>
+      <span class="msg-window-badge ${withinWindow ? "open" : "closed"}">
+        ${withinWindow ? "Você pode responder livremente" : "Fora da janela de 24h — só mensagens de modelo"}
+      </span>`;
+    form.classList.remove("hidden");
+  }
+
+  function renderThread() {
+    const list = document.getElementById("msg-thread-messages");
+    if (!list) return;
+
+    list.innerHTML = messages.length
+      ? messages
+          .map((m) => `
+        <div class="msg-bubble msg-bubble--${m.direction}${m.status === "failed" ? " msg-bubble--failed" : ""}">
+          <div>${m.text}</div>
+          <div class="msg-bubble-hora">${m.timestamp ? formatTime(m.timestamp) : ""}</div>
+        </div>`)
+          .join("")
+      : '<div class="empty"><i class="ti ti-messages"></i><p>Nenhuma mensagem ainda.</p></div>';
+
+    list.scrollTop = list.scrollHeight;
+  }
+
+  async function handleSend(event) {
+    event.preventDefault();
+    const input = document.getElementById("msg-send-input");
+    const text = input.value.trim();
+    if (!text || !selectedConversationId) return;
+
+    input.value = "";
+    try {
+      await DuoVet.state.sendWhatsappMessage(selectedConversationId, text);
+    } catch (err) {
+      console.error("DuoVet: erro ao enviar mensagem do WhatsApp.", err);
+      showToast(err.message || "Não foi possível enviar a mensagem.");
+    }
+  }
+
+  // Chamado pela aba Pacientes ao clicar no botão de WhatsApp da ficha do
+  // tutor — cria a conversa (se ainda não existir) e já abre a aba nela.
+  async function openConversationForTutor(tutorTelefone, tutorNome) {
+    const normalized = normalizePhone(tutorTelefone);
+    if (!normalized) {
+      showToast("Telefone do tutor inválido ou ausente.");
+      return;
+    }
+    try {
+      const conversationId = await DuoVet.state.startWhatsappConversation(normalized, tutorNome);
+      selectConversation(conversationId);
+    } catch (err) {
+      console.error("DuoVet: erro ao iniciar conversa do WhatsApp.", err);
+      showToast(err.message || "Não foi possível abrir a conversa.");
+    }
+  }
+
+  function init() {
+    document.getElementById("msg-send-form").addEventListener("submit", handleSend);
+  }
+
+  function render() {
+    renderList();
+    renderHeader();
+    renderThread();
+  }
+
+  return { init, render, openConversationForTutor };
+})();
+  </script>
+  <script>
 // relatorio.js — exportação do relatório de faturamento mensal em PDF
 // (aba Painel). Usa jsPDF + jspdf-autotable (carregados via CDN no
 // index.html) para montar um documento com cabeçalho/logo, cards de resumo
@@ -3865,7 +4186,7 @@ DuoVet.relatorio = (function () {
 window.DuoVet = window.DuoVet || {};
 
 (function () {
-  const TABS = ["dashboard", "venda", "servicos", "gastos", "historico", "calendario", "pacientes"];
+  const TABS = ["dashboard", "venda", "servicos", "gastos", "historico", "calendario", "pacientes", "mensagens"];
   const TAB_TITLES = {
     dashboard: "Painel",
     venda: "Nova Venda",
@@ -3874,6 +4195,7 @@ window.DuoVet = window.DuoVet || {};
     historico: "Histórico",
     calendario: "Calendário",
     pacientes: "Pacientes",
+    mensagens: "Mensagens",
   };
 
   function switchTab(target) {
@@ -3920,6 +4242,7 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.calendar.render();
     DuoVet.pacientes.render();
     DuoVet.relatorio.render();
+    DuoVet.mensagens.render();
   }
 
   function renderHeaderDate() {
@@ -3965,6 +4288,7 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.pacientes.init();
     DuoVet.auth.init();
     DuoVet.relatorio.init();
+    DuoVet.mensagens.init();
 
     document.getElementById("btn-logout").addEventListener("click", () => DuoVet.auth.logout());
     document.addEventListener("duovet:authchanged", () => {

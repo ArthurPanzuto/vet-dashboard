@@ -45,6 +45,22 @@ service cloud.firestore {
       match /appointments/{docId} { allow read, write: if isMember(orgId); }
       match /categories/{docId} { allow read, write: if isMember(orgId); }
       match /eventTypes/{docId} { allow read, write: if isMember(orgId); }
+
+      // Conversas de WhatsApp: criadas/preenchidas só pelo Admin SDK (Cloud
+      // Functions whatsappWebhook/startConversation/sendWhatsappMessage), que
+      // ignora estas regras. O cliente só lê e pode zerar unreadCount ao abrir
+      // a conversa — qualquer outro campo alterado pelo cliente é rejeitado.
+      match /conversations/{conversationId} {
+        allow read: if isMember(orgId);
+        allow update: if isMember(orgId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["unreadCount"]);
+        allow create, delete: if false;
+
+        match /messages/{messageId} {
+          allow read: if isMember(orgId);
+          allow write: if false;
+        }
+      }
     }
   }
 }
