@@ -45,6 +45,12 @@ service cloud.firestore {
       match /appointments/{docId} { allow read, write: if isMember(orgId); }
       match /categories/{docId} { allow read, write: if isMember(orgId); }
       match /eventTypes/{docId} { allow read, write: if isMember(orgId); }
+      match /produtos/{docId} { allow read, write: if isMember(orgId); }
+      match /movimentacoesEstoque/{docId} { allow read, write: if isMember(orgId); }
+      match /banhoTosaClientes/{docId} { allow read, write: if isMember(orgId); }
+      match /banhoTosaServicos/{docId} { allow read, write: if isMember(orgId); }
+      match /banhoTosaAgendamentos/{docId} { allow read, write: if isMember(orgId); }
+      match /farmaciaItens/{docId} { allow read, write: if isMember(orgId); }
 
       // Conversas de WhatsApp: criadas/preenchidas só pelo Admin SDK (Cloud
       // Functions whatsappWebhook/startConversation/sendWhatsappMessage), que
