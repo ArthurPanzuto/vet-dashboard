@@ -135,6 +135,19 @@ exports.whatsappWebhook = onRequest({ secrets: [META_VERIFY_TOKEN] }, async (req
   res.sendStatus(200);
 });
 
+// Consultada pela aba "Mensagens" pra mostrar o status real da conexão —
+// substitui o protótipo puramente visual (QR Code ilustrativo + localStorage)
+// que existia antes. Não expõe nenhum segredo: só diz se as variáveis não
+// secretas (WHATSAPP_ORG_ID/WHATSAPP_PHONE_NUMBER_ID) estão configuradas.
+// Isso não garante que o access token seja válido — só confirma que o backend
+// foi configurado; um token inválido só aparece no primeiro envio real.
+exports.getWhatsappStatus = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "É necessário estar autenticado.");
+  }
+  return { configured: !!(ORG_ID && PHONE_NUMBER_ID) };
+});
+
 // Cria (ou reaproveita) uma conversa antes da primeira mensagem — usado pelo
 // botão de WhatsApp na ficha do paciente, para a conversa já aparecer na lista.
 exports.startConversation = onCall(async (request) => {

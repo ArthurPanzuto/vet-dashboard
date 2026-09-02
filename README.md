@@ -62,8 +62,9 @@ O deploy imprime a URL da função `whatsappWebhook` (algo como `https://us-cent
 
 ### 4. Testar
 
+- Abra o painel, vá em "Mensagens" — o card "Conexão do WhatsApp" no topo mostra o status real (consulta a função `getWhatsappStatus`): "não conectado" enquanto as functions não estiverem publicadas, "publicado mas não configurado" se faltar `WHATSAPP_ORG_ID`/`WHATSAPP_PHONE_NUMBER_ID`, e "configurado" quando os dois passos acima estiverem prontos. Não existe QR Code nem botão de "conectar" — clique em "Como configurar" pra ver este mesmo passo a passo direto na tela.
 - Envie uma mensagem de teste do celular da clínica para o número da API e confira se ela aparece em `organizations/{orgId}/conversations` no console do Firestore.
-- Abra o painel, vá em "Mensagens" e responda por lá — confirme o recebimento no WhatsApp real.
+- Responda por lá — confirme o recebimento no WhatsApp real.
 
 ### Limitações desta fase
 
