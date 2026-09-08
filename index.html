@@ -46,7 +46,7 @@
     // ?localdb=1 na URL substitui firebase.auth()/firebase.firestore() por um
     // banco falso guardado no localStorage do próprio navegador — nenhuma
     // chamada de rede, nenhum projeto Firebase envolvido, nada aqui afeta o
-    // site publicado (index.html) nem qualquer dado real. Sem o parâmetro, o
+    // banco de dados real nem qualquer dado real. Sem o parâmetro, o
     // comportamento é o de sempre (Firebase real).
     if (new URLSearchParams(location.search).get("localdb") === "1") {
       (function () {
@@ -230,14 +230,16 @@
     }
   </script>
 
-  <!-- Aplica o tema salvo antes do primeiro paint. Padrão é escuro (como no
-       resto do app); só vira claro se o usuário já escolheu isso antes, ou
-       se o sistema pede tema claro na primeira visita. -->
+  <!-- Aplica o tema salvo antes do primeiro paint. Três modos possíveis em
+       duovet-theme: "light", "dark" ou "system" (padrão quando ausente,
+       igual ao comportamento de antes desta preferência existir — segue o
+       SO). Configurações → Aparência controla isso; ver applyTheme em main.js. -->
   <script>
     (function () {
       const saved = localStorage.getItem("duovet-theme");
       const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-      if (saved === "light" || (!saved && prefersLight)) {
+      const wantsLight = saved === "light" || ((saved === "system" || !saved) && prefersLight);
+      if (wantsLight) {
         document.documentElement.setAttribute("data-theme", "light");
       }
     })();
@@ -378,7 +380,6 @@ html, body {
 /* ==================== TOPBAR / CONTENT ==================== */
 .topbar { padding: 1.1rem 1.75rem .25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
 .topbar-title { font-family: 'Outfit', 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: var(--t1); letter-spacing: -.02em; }
-.topbar-date { font-size: 12px; color: var(--t3); }
 .content { padding: .75rem 1.75rem 2rem; max-width: 1400px; margin: 0 auto; }
 
 .panel { display: none; }
@@ -771,8 +772,6 @@ canvas { max-width: 100%; }
 .auth-actions .btn-g,.auth-actions .btn-p{flex:1;justify-content:center;}
 #app-connection-error{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:250;}
 
-.header-auth{display:flex;align-items:center;gap:.6rem;font-size:12.5px;color:var(--t2);margin-right:.75rem;}
-.header-auth strong{color:var(--t1);}
 
 .search-mode-pill{display:inline-flex;background:var(--card2);border-radius:8px;padding:3px;gap:2px;align-self:flex-start;}
 .smp-btn{border:none;background:transparent;color:var(--t3);font-size:12.5px;font-weight:600;padding:.4rem .75rem;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;}
@@ -935,6 +934,37 @@ canvas { max-width: 100%; }
 .aparencia-info .modulo-nome { font-size: 13.5px; }
 .aparencia-info .modulo-desc { font-size: 12px; color: var(--t3); margin-top: 2px; }
 
+/* ---- Configurações: sub-navegação (Perfil / Aparência / Integrações / API e Webhooks / Módulos) ---- */
+.settings-layout { display: flex; align-items: flex-start; gap: 1.5rem; }
+.settings-nav { flex-shrink: 0; width: 220px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
+.settings-nav-btn { display: flex; align-items: center; gap: .65rem; width: 100%; border: none; background: transparent; color: var(--t2); font-size: 13.5px; font-weight: 600; padding: .65rem .8rem; border-radius: 10px; cursor: pointer; text-align: left; transition: background .15s, color .15s; }
+.settings-nav-btn i { font-size: 17px; flex-shrink: 0; }
+.settings-nav-btn:hover { background: var(--card2); color: var(--t1); }
+.settings-nav-btn.active { background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 18%, transparent), color-mix(in srgb, var(--blue) 5%, transparent)); color: var(--t1); }
+.settings-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.settings-pane { display: none; flex-direction: column; gap: 1rem; }
+.settings-pane.active { display: flex; }
+@media (max-width: 860px) { .settings-layout { flex-direction: column; } .settings-nav { width: 100%; flex-direction: row; overflow-x: auto; gap: 4px; } .settings-nav-btn { white-space: nowrap; } }
+
+/* ---- Configurações → Integrações: cards de conexão ---- */
+.integrations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+.integration-card { display: flex; align-items: flex-start; gap: 1rem; padding: 1.25rem; }
+.integration-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; color: #fff; }
+.integration-icon.whatsapp { background: #25d366; }
+.integration-icon.google { background: #4285f4; }
+.integration-body { flex: 1; min-width: 0; }
+.integration-name { font-weight: 700; font-size: 14.5px; color: var(--t1); }
+.integration-desc { font-size: 12px; color: var(--t3); margin-top: 2px; line-height: 1.5; }
+.integration-status-row { display: flex; align-items: center; gap: 1rem; justify-content: space-between; margin-top: .75rem; flex-wrap: wrap; }
+.integration-status { display: inline-flex; align-items: center; gap: 3px; }
+.integration-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* ---- Configurações → Perfil ---- */
+.perfil-header { display: flex; align-items: center; gap: 1rem; }
+.perfil-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--blue-l); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex-shrink: 0; }
+.perfil-form-row { display: flex; flex-direction: column; gap: .3rem; }
+.perfil-form-row label { font-size: 12px; font-weight: 600; color: var(--t3); }
+
 /* Densidade compacta: reduz padding/gaps dos blocos mais usados, sem mexer
    em fonte (isso é controlado separadamente pela escala de texto abaixo). */
 [data-density="compacta"] .card-body { padding: .85rem 1rem; }
@@ -972,6 +1002,52 @@ canvas { max-width: 100%; }
 .main-area { flex: 1; min-width: 0; }
 .topbar-header { padding: 1.1rem 1.75rem .25rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ---- Barra de ações rápidas (topo direito): busca, tema, notificações ---- */
+.qb-search { position: relative; display: flex; align-items: center; gap: 8px; background: var(--card2); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: .5rem .9rem; width: 240px; transition: width .18s ease, border-color .18s ease; }
+.qb-search:focus-within { width: 300px; border-color: color-mix(in srgb, var(--blue) 40%, var(--border)); }
+.qb-search i { color: var(--t3); font-size: 15px; flex-shrink: 0; }
+.qb-search input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; color: var(--t1); font-size: 13px; font-family: inherit; }
+.qb-search input::placeholder { color: var(--t3); }
+.qb-search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; z-index: 220; max-height: 340px; overflow-y: auto; }
+.qb-search-result { display: flex; align-items: center; gap: .6rem; width: 100%; border: none; background: transparent; padding: .65rem .9rem; font-size: 13px; color: var(--t1); cursor: pointer; text-align: left; }
+.qb-search-result i { color: var(--blue); font-size: 15px; flex-shrink: 0; }
+.qb-search-result:hover, .qb-search-result.active { background: var(--card2); }
+.qb-search-result .qb-search-result-path { color: var(--t3); font-size: 11px; margin-left: auto; flex-shrink: 0; }
+.qb-search-empty { padding: .9rem; font-size: 12.5px; color: var(--t3); text-align: center; }
+
+.qb-icon-btn { position: relative; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--card2); color: var(--t2); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; }
+.qb-icon-btn:hover { background: var(--blue-l); color: var(--blue); }
+
+.qb-notif-wrap { position: relative; }
+.qb-notif-dot { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); border: 2px solid var(--card2); }
+.qb-notif-panel { position: absolute; top: calc(100% + 10px); right: 0; width: 380px; max-width: calc(100vw - 2rem); background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); z-index: 220; overflow: hidden; display: flex; flex-direction: column; }
+.qb-notif-hd { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .9rem 1.1rem; border-bottom: 1px solid var(--border); }
+.qb-notif-hd-title { font-weight: 700; font-size: 14px; color: var(--t1); display: flex; align-items: center; gap: 6px; }
+.qb-notif-count { background: var(--blue-l); color: var(--blue); font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: var(--radius-pill); }
+.qb-notif-list { max-height: 420px; overflow-y: auto; }
+.qb-notif-item { display: flex; align-items: flex-start; gap: .7rem; padding: .8rem 1.1rem; border-bottom: 1px solid var(--border); position: relative; }
+.qb-notif-item:last-child { border-bottom: none; }
+.qb-notif-item.unread { background: color-mix(in srgb, var(--blue) 5%, transparent); }
+.qb-notif-item.prioridade-pendencia { background: color-mix(in srgb, var(--red) 7%, transparent); }
+.qb-notif-item.prioridade-alerta.unread, .qb-notif-item.prioridade-alerta { background: color-mix(in srgb, var(--amber) 7%, transparent); }
+.qb-notif-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.qb-notif-icon.tipo-informativa { background: var(--blue-l); color: var(--blue); }
+.qb-notif-icon.tipo-aviso { background: var(--amber-l); color: var(--amber); }
+.qb-notif-icon.tipo-alerta { background: var(--amber-l); color: var(--amber); }
+.qb-notif-icon.tipo-pendencia { background: var(--red-l); color: var(--red); }
+.qb-notif-body { flex: 1; min-width: 0; }
+.qb-notif-title { font-weight: 700; font-size: 13px; color: var(--t1); }
+.qb-notif-desc { font-size: 12px; color: var(--t3); margin-top: 1px; line-height: 1.45; }
+.qb-notif-when { font-size: 10.5px; color: var(--t3); margin-top: 4px; }
+.qb-notif-unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); flex-shrink: 0; margin-top: 5px; }
+.qb-notif-empty { padding: 2.5rem 1rem; text-align: center; color: var(--t3); font-size: 13px; }
+.qb-notif-empty i { font-size: 26px; display: block; margin-bottom: .5rem; }
+
+@media (max-width: 860px) {
+  .qb-search { width: 0; padding: 0; border: none; }
+  .qb-search i, .qb-search input { display: none; }
+}
   </style>
 </head>
 <body>
@@ -1049,12 +1125,6 @@ canvas { max-width: 100%; }
       </nav>
 
       <div class="sb-footer">
-        <button type="button" class="sb-link" id="theme-toggle" aria-label="Alternar tema claro/escuro">
-          <i class="ti ti-moon" id="theme-icon"></i><span class="sb-label" id="theme-label">Tema claro</span>
-        </button>
-        <button type="button" class="sb-link" id="sb-collapse-btn" aria-label="Recolher menu" aria-pressed="false">
-          <i class="ti ti-layout-sidebar-left-collapse" id="sb-collapse-icon"></i><span class="sb-label" id="sb-collapse-label">Recolher</span>
-        </button>
         <button type="button" class="sb-link" data-tab="configuracoes" id="btn-configuracoes">
           <i class="ti ti-settings"></i><span class="sb-label">Configurações</span>
         </button>
@@ -1075,12 +1145,32 @@ canvas { max-width: 100%; }
           <i class="ti ti-menu-2"></i>
         </button>
         <div class="topbar-title" id="page-title">Painel</div>
-        <div class="topbar-date" id="header-date"></div>
         <div class="topbar-actions">
-          <div id="header-auth" class="header-auth hidden">
-            <span>Logado: <strong id="header-auth-nome"></strong></span>
-            <button type="button" id="btn-logout" class="link-btn"><i class="ti ti-logout"></i> Sair</button>
+
+          <div class="qb-search" id="qb-search">
+            <i class="ti ti-search"></i>
+            <input type="text" id="qb-search-input" placeholder="Buscar funcionalidades..." autocomplete="off" />
+            <div class="qb-search-results hidden" id="qb-search-results"></div>
           </div>
+
+          <button type="button" class="qb-icon-btn" id="qb-theme-btn" aria-label="Alternar tema claro/escuro">
+            <i class="ti ti-moon" id="qb-theme-icon"></i>
+          </button>
+
+          <div class="qb-notif-wrap">
+            <button type="button" class="qb-icon-btn" id="qb-notif-btn" aria-label="Notificações">
+              <i class="ti ti-bell"></i>
+              <span class="qb-notif-dot hidden" id="qb-notif-dot"></span>
+            </button>
+            <div class="qb-notif-panel hidden" id="qb-notif-panel">
+              <div class="qb-notif-hd">
+                <div class="qb-notif-hd-title">Notificações <span class="qb-notif-count" id="qb-notif-count">0</span></div>
+                <button type="button" class="link-btn" id="qb-notif-markall">Marcar todas como lidas</button>
+              </div>
+              <div class="qb-notif-list" id="qb-notif-list"></div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1424,21 +1514,6 @@ canvas { max-width: 100%; }
           <div class="card-body" style="padding-top:.25rem;padding-bottom:.25rem"><div id="alerts-list"></div></div>
         </div>
 
-        <div class="card" id="google-calendar-card">
-          <div class="card-hd">
-            <div class="card-title"><i class="ti ti-brand-google"></i> Google Calendar</div>
-            <span id="gcal-status-badge" class="badge badge-low">Desconectado</span>
-          </div>
-          <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-            <p id="gcal-status-text" style="font-size:12.5px;color:var(--t3);margin:0">Conecte sua conta Google pra ver seus compromissos do DuoVet no Google Calendar automaticamente (e trazer eventos criados lá de volta pra cá).</p>
-            <div style="display:flex;gap:.5rem;flex-shrink:0">
-              <button id="gcal-sync-btn" type="button" class="btn-g hidden"><i class="ti ti-refresh"></i> Sincronizar agora</button>
-              <button id="gcal-connect-btn" type="button" class="btn-p"><i class="ti ti-brand-google"></i> Conectar Google Calendar</button>
-              <button id="gcal-disconnect-btn" type="button" class="btn-g hidden">Desconectar</button>
-            </div>
-          </div>
-        </div>
-
         <div class="card">
           <div class="card-hd">
             <div style="display:flex;align-items:center;gap:.5rem">
@@ -1549,19 +1624,6 @@ canvas { max-width: 100%; }
 
       <!-- ==================== MENSAGENS (WHATSAPP) ==================== -->
       <section id="tab-mensagens" class="panel">
-        <div class="card" id="whatsapp-connect-card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-brand-whatsapp"></i> Conexão do WhatsApp</div></div>
-          <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-            <div>
-              <div id="whatsapp-status-label" style="font-weight:700;font-size:14px"></div>
-              <div id="whatsapp-status-sub" style="font-size:12.5px;color:var(--t3);margin-top:2px;max-width:520px"></div>
-            </div>
-            <div style="display:flex;gap:.6rem;flex-shrink:0">
-              <button id="whatsapp-refresh-btn" type="button" class="btn-g"><i class="ti ti-refresh"></i> Verificar novamente</button>
-              <button id="whatsapp-setup-btn" type="button" class="btn-p"><i class="ti ti-settings"></i> Como configurar</button>
-            </div>
-          </div>
-        </div>
         <div class="msg-layout">
           <div class="card msg-conversas-card">
             <div class="card-hd">
@@ -1585,55 +1647,207 @@ canvas { max-width: 100%; }
            grupos/acordeão) — ver applyModuleVisibility()/MODULE_TABS em
            main.js e DuoVet.state.getModuleRegistry(). -->
       <section id="tab-configuracoes" class="panel">
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-apps"></i> Módulos da clínica</div></div>
-          <div class="card-body">
-            <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Ative ou desative funcionalidades opcionais da dashboard. O que estiver desativado some da barra lateral na hora — nenhum dado já cadastrado é apagado, e reativar traz tudo de volta exatamente como estava.</p>
-            <div id="modulos-lista" class="modulos-lista"></div>
-          </div>
-        </div>
+        <div class="settings-layout">
+          <nav class="settings-nav" id="settings-nav">
+            <button type="button" class="settings-nav-btn active" data-settings-tab="perfil"><i class="ti ti-user"></i><span>Perfil</span></button>
+            <button type="button" class="settings-nav-btn" data-settings-tab="aparencia"><i class="ti ti-adjustments"></i><span>Aparência</span></button>
+            <button type="button" class="settings-nav-btn" data-settings-tab="integracoes"><i class="ti ti-plug-connected"></i><span>Integrações</span></button>
+            <button type="button" class="settings-nav-btn" data-settings-tab="api-webhooks"><i class="ti ti-key"></i><span>API e Webhooks</span></button>
+            <button type="button" class="settings-nav-btn" data-settings-tab="modulos"><i class="ti ti-apps"></i><span>Módulos</span></button>
+          </nav>
 
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-layout-dashboard"></i> Painel Principal</div></div>
-          <div class="card-body">
-            <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Escolha quais indicadores aparecem na Visão Geral.</p>
-            <div id="cards-visao-geral-lista" class="cards-toggle-lista"></div>
-          </div>
-        </div>
+          <div class="settings-content">
 
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-wallet"></i> Indicadores Financeiros</div></div>
-          <div class="card-body">
-            <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Escolha quais indicadores aparecem no topo do Painel Financeiro (Financeiro &gt; Painel).</p>
-            <div id="cards-financeiro-lista" class="cards-toggle-lista"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-adjustments"></i> Aparência</div></div>
-          <div class="card-body">
-            <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Ajustes visuais além do modo claro/escuro (que fica no rodapé da barra lateral).</p>
-            <div class="aparencia-row">
-              <div class="aparencia-info">
-                <div class="modulo-nome">Densidade da interface</div>
-                <div class="modulo-desc">Confortável (atual) ou compacta, com menos espaço entre os blocos.</div>
+            <!-- ---- Perfil ---- -->
+            <div class="settings-pane active" data-settings-pane="perfil">
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-user"></i> Perfil</div></div>
+                <div class="card-body">
+                  <div class="perfil-header">
+                    <div class="perfil-avatar" id="perfil-avatar">--</div>
+                    <div>
+                      <div style="font-weight:700;font-size:15px" id="perfil-nome-atual">—</div>
+                      <div style="font-size:12.5px;color:var(--t3)" id="perfil-email-atual">—</div>
+                    </div>
+                  </div>
+                  <div class="form-grid" style="margin-top:1.25rem">
+                    <div class="fl">
+                      <label>Nome completo</label>
+                      <input id="perfil-nome-input" type="text" readonly />
+                    </div>
+                    <div class="fl">
+                      <label>E-mail</label>
+                      <input id="perfil-email-input" type="text" readonly />
+                    </div>
+                    <div class="fl">
+                      <label>Código da clínica</label>
+                      <input id="perfil-org-input" type="text" readonly />
+                    </div>
+                  </div>
+                  <p style="font-size:12px;color:var(--t3);margin-top:1rem">Edição de perfil (nome, foto, dados da clínica) fica preparada para uma próxima etapa.</p>
+                </div>
               </div>
-              <div class="segmented" id="aparencia-densidade" role="group" aria-label="Densidade da interface">
-                <button type="button" class="segmented-btn" data-valor="confortavel">Confortável</button>
-                <button type="button" class="segmented-btn" data-valor="compacta">Compacta</button>
+
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-shield-lock"></i> Sessão</div></div>
+                <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+                  <p style="font-size:12.5px;color:var(--t3);margin:0">Você está conectado como <strong id="perfil-sessao-nome" style="color:var(--t1)">—</strong>.</p>
+                  <button type="button" id="btn-logout" class="btn-g"><i class="ti ti-logout"></i> Encerrar sessão</button>
+                </div>
               </div>
             </div>
-            <div class="aparencia-row">
-              <div class="aparencia-info">
-                <div class="modulo-nome">Tamanho do texto</div>
-                <div class="modulo-desc">Aumenta ou diminui o conteúdo das telas (a barra lateral não muda).</div>
-              </div>
-              <div class="segmented" id="aparencia-texto" role="group" aria-label="Tamanho do texto">
-                <button type="button" class="segmented-btn" data-valor="pequeno">Pequeno</button>
-                <button type="button" class="segmented-btn" data-valor="normal">Normal</button>
-                <button type="button" class="segmented-btn" data-valor="grande">Grande</button>
+
+            <!-- ---- Aparência ---- -->
+            <div class="settings-pane" data-settings-pane="aparencia">
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-adjustments"></i> Aparência</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Tema, densidade, texto e barra lateral. Preferências salvas neste navegador.</p>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Tema</div>
+                      <div class="modulo-desc">Claro, escuro, ou seguindo automaticamente o tema do seu sistema.</div>
+                    </div>
+                    <div class="segmented" id="aparencia-tema" role="group" aria-label="Tema">
+                      <button type="button" class="segmented-btn" data-valor="light">Claro</button>
+                      <button type="button" class="segmented-btn" data-valor="dark">Escuro</button>
+                      <button type="button" class="segmented-btn" data-valor="system">Sistema</button>
+                    </div>
+                  </div>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Barra lateral</div>
+                      <div class="modulo-desc">Expandida (com rótulos) ou recolhida (só ícones).</div>
+                    </div>
+                    <div class="segmented" id="aparencia-menu" role="group" aria-label="Barra lateral">
+                      <button type="button" class="segmented-btn" data-valor="expandida">Expandida</button>
+                      <button type="button" class="segmented-btn" data-valor="recolhida">Recolhida</button>
+                    </div>
+                  </div>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Densidade da interface</div>
+                      <div class="modulo-desc">Confortável (atual) ou compacta, com menos espaço entre os blocos.</div>
+                    </div>
+                    <div class="segmented" id="aparencia-densidade" role="group" aria-label="Densidade da interface">
+                      <button type="button" class="segmented-btn" data-valor="confortavel">Confortável</button>
+                      <button type="button" class="segmented-btn" data-valor="compacta">Compacta</button>
+                    </div>
+                  </div>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Tamanho do texto</div>
+                      <div class="modulo-desc">Aumenta ou diminui o conteúdo das telas (a barra lateral não muda).</div>
+                    </div>
+                    <div class="segmented" id="aparencia-texto" role="group" aria-label="Tamanho do texto">
+                      <button type="button" class="segmented-btn" data-valor="pequeno">Pequeno</button>
+                      <button type="button" class="segmented-btn" data-valor="normal">Normal</button>
+                      <button type="button" class="segmented-btn" data-valor="grande">Grande</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
+            <!-- ---- Integrações ---- -->
+            <div class="settings-pane" data-settings-pane="integracoes">
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-plug-connected"></i> Integrações</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">Cada integração é independente: conectar ou desconectar uma não afeta a outra.</p>
+                  <div class="integrations-grid">
+
+                    <div class="card integration-card">
+                      <div class="integration-icon whatsapp"><i class="ti ti-brand-whatsapp"></i></div>
+                      <div class="integration-body">
+                        <div class="integration-name">WhatsApp Business</div>
+                        <div class="integration-desc">Conversas com tutores direto pela API oficial da Meta (aba Mensagens).</div>
+                        <div class="integration-status-row">
+                          <span class="integration-status">
+                            <span id="whatsapp-status-label" style="font-weight:700;font-size:13px"></span>
+                          </span>
+                          <div class="integration-actions">
+                            <button id="whatsapp-refresh-btn" type="button" class="btn-g"><i class="ti ti-refresh"></i> Verificar novamente</button>
+                            <button id="whatsapp-setup-btn" type="button" class="btn-p"><i class="ti ti-settings"></i> Como configurar</button>
+                          </div>
+                        </div>
+                        <div id="whatsapp-status-sub" style="font-size:12px;color:var(--t3);margin-top:.5rem"></div>
+                      </div>
+                    </div>
+
+                    <div class="card integration-card">
+                      <div class="integration-icon google"><i class="ti ti-brand-google"></i></div>
+                      <div class="integration-body">
+                        <div class="integration-name">Google Calendar</div>
+                        <div class="integration-desc">Sincroniza os compromissos da Agenda com sua conta Google (mão dupla).</div>
+                        <div class="integration-status-row">
+                          <span class="integration-status">
+                            <span id="gcal-status-badge" class="badge badge-low">Desconectado</span>
+                          </span>
+                          <div class="integration-actions">
+                            <button id="gcal-sync-btn" type="button" class="btn-g hidden"><i class="ti ti-refresh"></i> Sincronizar agora</button>
+                            <button id="gcal-connect-btn" type="button" class="btn-p"><i class="ti ti-brand-google"></i> Conectar</button>
+                            <button id="gcal-disconnect-btn" type="button" class="btn-g hidden">Desconectar</button>
+                          </div>
+                        </div>
+                        <div id="gcal-status-text" style="font-size:12px;color:var(--t3);margin-top:.5rem"></div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- API e Webhooks ---- -->
+            <div class="settings-pane" data-settings-pane="api-webhooks">
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-key"></i> API e Webhooks</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">Área técnica, separada de Integrações — pensada para quem administra a infraestrutura da clínica, não para o uso diário.</p>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Webhook do WhatsApp</div>
+                      <div class="modulo-desc">Endpoint que recebe eventos da Meta (mensagens e status de entrega). URL e token de verificação são configurados uma única vez no deploy das Cloud Functions — ver README.md, seção "Mensagens (WhatsApp Cloud API)".</div>
+                    </div>
+                  </div>
+                  <div class="aparencia-row">
+                    <div class="aparencia-info">
+                      <div class="modulo-nome">Chaves de API</div>
+                      <div class="modulo-desc">Em breve: geração de chaves para integrações de terceiros com o DuoVet.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- Módulos ---- -->
+            <div class="settings-pane" data-settings-pane="modulos">
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-apps"></i> Módulos da clínica</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Ative ou desative funcionalidades opcionais da dashboard. O que estiver desativado some da barra lateral na hora — nenhum dado já cadastrado é apagado, e reativar traz tudo de volta exatamente como estava.</p>
+                  <div id="modulos-lista" class="modulos-lista"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-layout-dashboard"></i> Painel Principal</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Escolha quais indicadores aparecem na Visão Geral.</p>
+                  <div id="cards-visao-geral-lista" class="cards-toggle-lista"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-hd"><div class="card-title"><i class="ti ti-wallet"></i> Indicadores Financeiros</div></div>
+                <div class="card-body">
+                  <p style="font-size:12.5px;color:var(--t3);margin-bottom:.5rem">Escolha quais indicadores aparecem no topo do Painel Financeiro (Financeiro &gt; Painel).</p>
+                  <div id="cards-financeiro-lista" class="cards-toggle-lista"></div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -8752,6 +8966,216 @@ DuoVet.configuracoesView = (function () {
 })();
   </script>
   <script>
+// perfil.js — sub-aba "Configurações → Perfil": mostra e permite editar o
+// nome do vet logado (persistido de verdade em users/{uid}.nome, mesma
+// coleção usada pelo signup). E-mail e código da clínica ficam só-leitura.
+window.DuoVet = window.DuoVet || {};
+
+DuoVet.perfilView = (function () {
+  function iniciais(nome) {
+    const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return "?";
+    return (partes[0][0] + (partes[1] ? partes[1][0] : "")).toUpperCase();
+  }
+
+  function render() {
+    const vet = DuoVet.auth.getSessionVet();
+    if (!vet) return;
+    const avatar = document.getElementById("perfil-avatar");
+    if (avatar) avatar.textContent = iniciais(vet.nome);
+    const nomeAtual = document.getElementById("perfil-nome-atual");
+    if (nomeAtual) nomeAtual.textContent = vet.nome || "—";
+    const emailAtual = document.getElementById("perfil-email-atual");
+    if (emailAtual) emailAtual.textContent = vet.email || "—";
+    const sessaoNome = document.getElementById("perfil-sessao-nome");
+    if (sessaoNome) sessaoNome.textContent = vet.nome || vet.email || "—";
+    const nomeInput = document.getElementById("perfil-nome-input");
+    if (nomeInput) nomeInput.value = vet.nome || "";
+    const emailInput = document.getElementById("perfil-email-input");
+    if (emailInput) emailInput.value = vet.email || "";
+    const orgInput = document.getElementById("perfil-org-input");
+    if (orgInput) orgInput.value = vet.orgId || "";
+  }
+
+  function init() {
+    render();
+  }
+
+  return { init, render };
+})();
+  </script>
+  <script>
+// notifications.js — motor da central de notificações (barra superior).
+// Só CALCULA notificações a partir de dados reais já existentes em
+// DuoVet.state (despesas, estoque, agenda, banho e tosa, vendas) — nenhuma
+// coleção nova, nenhuma escrita no banco. "Lida"/"não lida" é local ao
+// navegador (localStorage, por uid), já que é só uma preferência de UI.
+window.DuoVet = window.DuoVet || {};
+
+DuoVet.notifications = (function () {
+  const { startOfDay, daysUntil, dateKey, formatCurrency, formatTime, formatDate } = DuoVet.utils;
+
+  function readSetKey() {
+    const uid = DuoVet.auth.getSessionVet()?.uid || "anon";
+    return `duovet-notif-lidas-${uid}`;
+  }
+
+  function getReadIds() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(readSetKey()) || "[]"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveReadIds(set) {
+    localStorage.setItem(readSetKey(), JSON.stringify([...set]));
+  }
+
+  function markAllRead(ids) {
+    const set = getReadIds();
+    ids.forEach((id) => set.add(id));
+    saveReadIds(set);
+  }
+
+  // Ordem de prioridade pra ordenação (pendência > alerta > aviso > informativa).
+  const PRIORIDADE_PESO = { pendencia: 0, alerta: 1, aviso: 2, informativa: 3 };
+
+  function quandoLabel(dias) {
+    if (dias < 0) return `Venceu há ${Math.abs(dias)} dia(s)`;
+    if (dias === 0) return "Hoje";
+    if (dias === 1) return "Amanhã";
+    return `Em ${dias} dias`;
+  }
+
+  function build() {
+    const hoje = startOfDay(new Date());
+    const lista = [];
+
+    // ---- Despesas: vencidas (pendência) e a vencer em até 5 dias (aviso) ----
+    DuoVet.state.getDespesas().forEach((d) => {
+      if (!d.data) return;
+      const dias = daysUntil(d.data);
+      if (dias < 0) {
+        lista.push({
+          id: `despesa-vencida:${d.id}`,
+          tipo: "pendencia",
+          icon: "ti-file-invoice",
+          titulo: "Pendência financeira",
+          descricao: `${d.descricao || "Despesa"} venceu há ${Math.abs(dias)} dia(s) (${formatCurrency(d.valor)}).`,
+          quando: quandoLabel(dias),
+          data: d.data,
+        });
+      } else if (dias <= 5) {
+        lista.push({
+          id: `despesa-vencer:${d.id}`,
+          tipo: "aviso",
+          icon: "ti-calendar-due",
+          titulo: `${d.descricao || "Despesa"} vence ${dias === 0 ? "hoje" : `em ${dias} dia(s)`}`,
+          descricao: formatCurrency(d.valor),
+          quando: quandoLabel(dias),
+          data: d.data,
+        });
+      }
+    });
+
+    // ---- Estoque: zerado (alerta) e baixo (aviso) — Farmácia + Produtos ----
+    const estoqueFontes = [
+      { itens: DuoVet.state.getFarmaciaItens(), origem: "Farmácia" },
+      { itens: DuoVet.state.getProdutos(), origem: "Produtos" },
+    ];
+    estoqueFontes.forEach(({ itens, origem }) => {
+      itens.forEach((item) => {
+        const atual = item.estoqueAtual || 0;
+        const minimo = item.estoqueMinimo || 0;
+        if (atual <= 0) {
+          lista.push({
+            id: `estoque-zero:${item.id}`,
+            tipo: "alerta",
+            icon: "ti-package-off",
+            titulo: `Sem estoque: ${item.nome}`,
+            descricao: `${origem} — nenhuma unidade disponível.`,
+            quando: "Agora",
+            data: hoje,
+          });
+        } else if (atual <= minimo && minimo > 0) {
+          lista.push({
+            id: `estoque-baixo:${item.id}`,
+            tipo: "aviso",
+            icon: "ti-alert-triangle",
+            titulo: `Estoque baixo: ${item.nome}`,
+            descricao: `${origem} — restam ${atual} unidade(s) (mínimo: ${minimo}).`,
+            quando: "Agora",
+            data: hoje,
+          });
+        }
+      });
+    });
+
+    // ---- Agenda: compromissos de hoje e de amanhã ----
+    DuoVet.state.getAppointments().forEach((a) => {
+      if (!a.data) return;
+      const dias = daysUntil(a.data);
+      if (dias !== 0 && dias !== 1) return;
+      const ehCirurgia = /cirurgia/i.test(a.tipoEvento || "");
+      const quem = a.pet || a.cliente || "";
+      lista.push({
+        id: `agenda:${a.id}`,
+        tipo: ehCirurgia ? "alerta" : "informativa",
+        icon: ehCirurgia ? "ti-scissors" : "ti-calendar-event",
+        titulo: `${a.tipoEvento || "Compromisso"}${quem ? ` — ${quem}` : ""}`,
+        descricao: `${dias === 0 ? "Hoje" : "Amanhã"} às ${a.horario || "--:--"}${a.titulo ? ` · ${a.titulo}` : ""}`,
+        quando: dias === 0 ? "Hoje" : "Amanhã",
+        data: a.data,
+      });
+    });
+
+    // ---- Banho e Tosa: agendamentos criados nas últimas 24h ----
+    const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    DuoVet.state.getBanhoTosaAgendamentos().forEach((a) => {
+      if (!a.createdAt || a.createdAt < ontem) return;
+      lista.push({
+        id: `bt-novo:${a.id}`,
+        tipo: "informativa",
+        icon: "ti-bath",
+        titulo: "Novo agendamento de banho e tosa",
+        descricao: `${a.petNome || "Pet"} — ${formatDate(a.data)} às ${a.horario || "--:--"}.`,
+        quando: "Recente",
+        data: a.createdAt,
+      });
+    });
+
+    // ---- Vendas: pagamentos recebidos hoje (limitado às 5 mais recentes) ----
+    DuoVet.state
+      .getTransactions()
+      .filter((t) => t.data && dateKey(t.data) === dateKey(hoje))
+      .sort((a, b) => b.data - a.data)
+      .slice(0, 5)
+      .forEach((t) => {
+        lista.push({
+          id: `pagamento:${t.id}`,
+          tipo: "informativa",
+          icon: "ti-cash",
+          titulo: "Pagamento recebido",
+          descricao: `${t.cliente || "Cliente"} — ${formatCurrency(t.valorBruto)}.`,
+          quando: "Hoje",
+          data: t.data,
+        });
+      });
+
+    lista.sort((a, b) => {
+      const pesoDiff = PRIORIDADE_PESO[a.tipo] - PRIORIDADE_PESO[b.tipo];
+      if (pesoDiff !== 0) return pesoDiff;
+      return a.data - b.data;
+    });
+
+    return lista.slice(0, 30);
+  }
+
+  return { build, getReadIds, markAllRead };
+})();
+  </script>
+  <script>
 // relatorio.js — exportação do relatório de faturamento mensal em PDF
 // (aba Painel). Usa jsPDF + jspdf-autotable (carregados via CDN no
 // index.html) para montar um documento com cabeçalho/logo, cards de resumo
@@ -9138,29 +9562,25 @@ window.DuoVet = window.DuoVet || {};
     document.getElementById("sb-scrim").classList.remove("show");
   }
 
-  function applySidebarCollapseLabel() {
+  // Recolher/expandir a barra lateral agora é controlado só em
+  // Configurações → Aparência (ver initAparenciaMenu) — a funcionalidade em
+  // si (classe .collapsed no <aside>) continua a mesma de sempre.
+  function setSidebarCollapsed(collapsed) {
+    document.getElementById("sidebar").classList.toggle("collapsed", collapsed);
+    localStorage.setItem("duovet-sidebar-collapsed", collapsed ? "1" : "0");
+    applyMenuLateralSegmented();
+  }
+
+  function applyMenuLateralSegmented() {
     const collapsed = document.getElementById("sidebar").classList.contains("collapsed");
-    document.getElementById("sb-collapse-icon").className = collapsed
-      ? "ti ti-layout-sidebar-left-expand"
-      : "ti ti-layout-sidebar-left-collapse";
-    document.getElementById("sb-collapse-label").textContent = collapsed ? "Expandir" : "Recolher";
+    document.querySelectorAll("#aparencia-menu .segmented-btn").forEach((btn) => {
+      btn.classList.toggle("active", (btn.dataset.valor === "recolhida") === collapsed);
+    });
   }
 
   function initSidebar() {
-    const sidebar = document.getElementById("sidebar");
-    const collapseBtn = document.getElementById("sb-collapse-btn");
     const hamburger = document.getElementById("sb-hamburger");
     const scrim = document.getElementById("sb-scrim");
-
-    applySidebarCollapseLabel();
-    if (sidebar.classList.contains("collapsed")) collapseBtn.setAttribute("aria-pressed", "true");
-
-    collapseBtn.addEventListener("click", () => {
-      const collapsed = sidebar.classList.toggle("collapsed");
-      collapseBtn.setAttribute("aria-pressed", String(collapsed));
-      localStorage.setItem("duovet-sidebar-collapsed", collapsed ? "1" : "0");
-      applySidebarCollapseLabel();
-    });
 
     // Cada grupo (Financeiro, Catálogo, Análises) tem seu próprio botão de
     // acordeão — precisa de um listener por grupo, não um só.
@@ -9217,14 +9637,6 @@ window.DuoVet = window.DuoVet || {};
     });
   }
 
-  function updateAuthGate() {
-    const loggedIn = DuoVet.auth.isLoggedIn();
-    document.getElementById("header-auth").classList.toggle("hidden", !loggedIn);
-    if (loggedIn) {
-      document.getElementById("header-auth-nome").textContent = DuoVet.auth.getSessionVet().nome;
-    }
-  }
-
   function updateSyncState() {
     const loggedIn = DuoVet.auth.isLoggedIn();
     const error = DuoVet.state.getConnectionError();
@@ -9252,43 +9664,264 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.relatorio.render();
     DuoVet.mensagens.render();
     DuoVet.configuracoesView.render();
+    DuoVet.perfilView.render();
+    renderNotifPanel();
     applyModuleVisibility();
     applyCardVisibility();
   }
 
-  function renderHeaderDate() {
-    const el = document.getElementById("header-date");
-    if (el) el.textContent = DuoVet.utils.formatDateLong(new Date());
-  }
-
   // O tema em si (atributo data-theme na <html>) já é aplicado por um script
   // inline no <head>, antes do primeiro paint, para evitar flash. Aqui só
-  // sincronizamos o ícone do botão e ligamos o clique de alternância.
-  function isLightTheme() {
-    return document.documentElement.getAttribute("data-theme") === "light";
+  // reagimos a mudanças feitas em Configurações → Aparência (3 modos:
+  // "light", "dark" ou "system" — nesse último, segue o SO ao vivo).
+  function getThemeMode() {
+    return localStorage.getItem("duovet-theme") || "system";
   }
 
-  function applyThemeIcon() {
-    const light = isLightTheme();
-    document.getElementById("theme-icon").className = light ? "ti ti-sun" : "ti ti-moon";
-    const label = document.getElementById("theme-label");
-    if (label) label.textContent = light ? "Tema escuro" : "Tema claro";
-  }
-
-  function toggleTheme() {
-    const goingLight = !isLightTheme();
-    if (goingLight) document.documentElement.setAttribute("data-theme", "light");
-    else document.documentElement.removeAttribute("data-theme");
-    localStorage.setItem("duovet-theme", goingLight ? "light" : "dark");
-    applyThemeIcon();
+  function refreshThemeCharts() {
     DuoVet.charts.refreshTheme();
     DuoVet.servicosAnalytics.refreshTheme();
     DuoVet.banhoTosaAnalytics.refreshTheme();
   }
 
-  function initTheme() {
-    applyThemeIcon();
-    document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
+  function applyTemaSegmented(mode) {
+    document.querySelectorAll("#aparencia-tema .segmented-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.valor === mode);
+    });
+  }
+
+  function applyTheme(mode) {
+    const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+    const wantsLight = mode === "light" || (mode === "system" && prefersLight);
+    if (wantsLight) document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("duovet-theme", mode);
+    applyTemaSegmented(mode);
+    refreshThemeCharts();
+    const qbIcon = document.getElementById("qb-theme-icon");
+    if (qbIcon) qbIcon.className = wantsLight ? "ti ti-sun" : "ti ti-moon";
+  }
+
+  // Atalho rápido (barra superior): alterna só entre claro/escuro (a opção
+  // "Sistema" continua disponível na configuração completa, Aparência).
+  function initQuickThemeToggle() {
+    const qbIcon = document.getElementById("qb-theme-icon");
+    if (qbIcon) qbIcon.className = document.documentElement.getAttribute("data-theme") === "light" ? "ti ti-sun" : "ti ti-moon";
+    document.getElementById("qb-theme-btn")?.addEventListener("click", () => {
+      const estaClaro = document.documentElement.getAttribute("data-theme") === "light";
+      applyTheme(estaClaro ? "dark" : "light");
+    });
+  }
+
+  function initAparenciaTema() {
+    applyTemaSegmented(getThemeMode());
+    document.getElementById("aparencia-tema")?.addEventListener("click", (event) => {
+      const btn = event.target.closest(".segmented-btn");
+      if (!btn) return;
+      applyTheme(btn.dataset.valor);
+    });
+    // Modo "Sistema" muda ao vivo se o SO trocar de tema com o app aberto
+    // (ex: agendamento automático de tema claro/escuro do Windows/macOS).
+    window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+      if (getThemeMode() === "system") applyTheme("system");
+    });
+  }
+
+  function initAparenciaMenu() {
+    applyMenuLateralSegmented();
+    document.getElementById("aparencia-menu")?.addEventListener("click", (event) => {
+      const btn = event.target.closest(".segmented-btn");
+      if (!btn) return;
+      setSidebarCollapsed(btn.dataset.valor === "recolhida");
+    });
+  }
+
+  // ---- Barra de ações rápidas: busca de funcionalidades -----------------------
+  // Aliases cobrem termos que o usuário pode digitar mas que não aparecem
+  // literalmente na sidebar (ex: "calendário" é a aba "Agenda"; "financeiro"
+  // deve trazer todas as sub-abas daquele grupo, não só uma).
+  const GROUP_SEARCH_KEYWORDS = {
+    financas: ["financeiro"],
+    catalogo: ["catalogo"],
+    analises: ["analises", "analise"],
+    "banho-tosa": ["banho e tosa", "banho", "tosa"],
+  };
+  const SOLO_SEARCH_KEYWORDS = { agenda: ["calendario", "agenda"] };
+
+  function normalizeTxt(s) {
+    return String(s || "").toLowerCase().normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
+  }
+
+  function buildSearchIndex() {
+    const items = [];
+    document.querySelectorAll(".sb-link[data-tab], .sb-sublink[data-tab]").forEach((el) => {
+      if (el.classList.contains("hidden")) return;
+      const tab = el.dataset.tab;
+      const label = (el.querySelector("span")?.textContent || el.textContent || "").trim();
+      const groupEl = el.closest(".sb-group");
+      const groupId = groupEl ? groupEl.dataset.group : "";
+      const groupLabel = groupEl ? (groupEl.querySelector(".sb-group-toggle .sb-label")?.textContent || "").trim() : "";
+      items.push({ tab, label, groupId, groupLabel });
+    });
+    return items;
+  }
+
+  function searchNav(query) {
+    const q = normalizeTxt(query).trim();
+    if (!q) return [];
+    const scored = [];
+    buildSearchIndex().forEach((item) => {
+      const normLabel = normalizeTxt(item.label);
+      let score = -1;
+      if (normLabel === q) score = 0;
+      else if (normLabel.startsWith(q)) score = 1;
+      else if (normLabel.includes(q)) score = 2;
+      if (score === -1) {
+        const soloHit = (SOLO_SEARCH_KEYWORDS[item.tab] || []).some((w) => normalizeTxt(w).includes(q) || q.includes(normalizeTxt(w)));
+        const groupHit = item.groupId && (GROUP_SEARCH_KEYWORDS[item.groupId] || []).some((w) => normalizeTxt(w).includes(q) || q.includes(normalizeTxt(w)));
+        if (soloHit || groupHit) score = 3;
+      }
+      if (score !== -1) scored.push({ ...item, score });
+    });
+    scored.sort((a, b) => a.score - b.score);
+    return scored.slice(0, 8);
+  }
+
+  function goToTab(tab) {
+    document.querySelector(`.sb-link[data-tab="${tab}"], .sb-sublink[data-tab="${tab}"]`)?.click();
+  }
+
+  function closeSearchResults() {
+    document.getElementById("qb-search-results")?.classList.add("hidden");
+  }
+
+  function renderSearchResults(results) {
+    const box = document.getElementById("qb-search-results");
+    if (!box) return;
+    box.innerHTML = results.length
+      ? results
+          .map(
+            (r) => `
+        <button type="button" class="qb-search-result" data-tab="${r.tab}">
+          <i class="ti ti-corner-down-right"></i><span>${r.label}</span>
+          ${r.groupLabel ? `<span class="qb-search-result-path">${r.groupLabel}</span>` : ""}
+        </button>`
+          )
+          .join("")
+      : '<div class="qb-search-empty">Nada encontrado.</div>';
+    box.classList.remove("hidden");
+  }
+
+  function initQuickSearch() {
+    const input = document.getElementById("qb-search-input");
+    const box = document.getElementById("qb-search-results");
+    if (!input || !box) return;
+    input.addEventListener("input", () => {
+      if (!input.value.trim()) { closeSearchResults(); return; }
+      renderSearchResults(searchNav(input.value));
+    });
+    input.addEventListener("focus", () => {
+      if (input.value.trim()) renderSearchResults(searchNav(input.value));
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") { input.blur(); closeSearchResults(); }
+      if (event.key === "Enter") {
+        const first = box.querySelector(".qb-search-result");
+        if (first) {
+          goToTab(first.dataset.tab);
+          input.value = "";
+          closeSearchResults();
+        }
+      }
+    });
+    box.addEventListener("click", (event) => {
+      const btn = event.target.closest(".qb-search-result");
+      if (!btn) return;
+      goToTab(btn.dataset.tab);
+      input.value = "";
+      closeSearchResults();
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#qb-search")) closeSearchResults();
+    });
+  }
+
+  // ---- Barra de ações rápidas: central de notificações -------------------------
+  function renderNotifPanel() {
+    if (!DuoVet.auth.isLoggedIn()) return;
+    const list = DuoVet.notifications.build();
+    const readIds = DuoVet.notifications.getReadIds();
+    const unread = list.filter((n) => !readIds.has(n.id));
+
+    const countEl = document.getElementById("qb-notif-count");
+    if (countEl) countEl.textContent = String(unread.length);
+    document.getElementById("qb-notif-dot")?.classList.toggle("hidden", unread.length === 0);
+
+    const container = document.getElementById("qb-notif-list");
+    if (!container) return;
+    container.innerHTML = list.length
+      ? list
+          .map((n) => {
+            const isUnread = !readIds.has(n.id);
+            return `
+        <div class="qb-notif-item prioridade-${n.tipo}${isUnread ? " unread" : ""}">
+          <div class="qb-notif-icon tipo-${n.tipo}"><i class="ti ${n.icon}"></i></div>
+          <div class="qb-notif-body">
+            <div class="qb-notif-title">${n.titulo}</div>
+            <div class="qb-notif-desc">${n.descricao}</div>
+            <div class="qb-notif-when">${n.quando}</div>
+          </div>
+          ${isUnread ? '<span class="qb-notif-unread-dot"></span>' : ""}
+        </div>`;
+          })
+          .join("")
+      : '<div class="qb-notif-empty"><i class="ti ti-bell-off"></i>Nenhuma notificação no momento.</div>';
+  }
+
+  function initNotifPanel() {
+    const btn = document.getElementById("qb-notif-btn");
+    const panel = document.getElementById("qb-notif-panel");
+    if (!btn || !panel) return;
+    btn.addEventListener("click", () => {
+      const opening = panel.classList.contains("hidden");
+      panel.classList.toggle("hidden");
+      if (opening) renderNotifPanel();
+    });
+    document.getElementById("qb-notif-markall")?.addEventListener("click", () => {
+      DuoVet.notifications.markAllRead(DuoVet.notifications.build().map((n) => n.id));
+      renderNotifPanel();
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".qb-notif-wrap")) panel.classList.add("hidden");
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") panel.classList.add("hidden");
+    });
+  }
+
+  // ---- Configurações: sub-navegação (Perfil / Aparência / Integrações / API e Webhooks / Módulos) ----
+  function initSettingsNav() {
+    const nav = document.getElementById("settings-nav");
+    if (!nav) return;
+    const salvo = localStorage.getItem("duovet-settings-tab");
+    if (salvo && document.querySelector(`.settings-pane[data-settings-pane="${salvo}"]`)) {
+      switchSettingsTab(salvo);
+    }
+    nav.addEventListener("click", (event) => {
+      const btn = event.target.closest(".settings-nav-btn");
+      if (!btn) return;
+      switchSettingsTab(btn.dataset.settingsTab);
+    });
+  }
+
+  function switchSettingsTab(target) {
+    document.querySelectorAll(".settings-nav-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.settingsTab === target);
+    });
+    document.querySelectorAll(".settings-pane").forEach((pane) => {
+      pane.classList.toggle("active", pane.dataset.settingsPane === target);
+    });
+    localStorage.setItem("duovet-settings-tab", target);
   }
 
   // ---- Aparência: densidade e escala de texto (Configurações) -----------------
@@ -9333,9 +9966,13 @@ window.DuoVet = window.DuoVet || {};
   document.addEventListener("DOMContentLoaded", () => {
     initNav();
     initSidebar();
-    initTheme();
+    initSettingsNav();
+    initAparenciaTema();
+    initAparenciaMenu();
     initAparencia();
-    renderHeaderDate();
+    initQuickThemeToggle();
+    initQuickSearch();
+    initNotifPanel();
     DuoVet.form.init();
     DuoVet.servicesView.init();
     DuoVet.produtosView.init();
@@ -9353,10 +9990,10 @@ window.DuoVet = window.DuoVet || {};
     DuoVet.mensagens.init();
     DuoVet.whatsappConnect.init();
     DuoVet.configuracoesView.init();
+    DuoVet.perfilView.init();
 
     document.getElementById("btn-logout").addEventListener("click", () => DuoVet.auth.logout());
     document.addEventListener("duovet:authchanged", () => {
-      updateAuthGate();
       updateSyncState();
     });
 
