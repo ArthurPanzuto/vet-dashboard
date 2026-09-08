@@ -52,6 +52,13 @@ service cloud.firestore {
       match /banhoTosaAgendamentos/{docId} { allow read, write: if isMember(orgId); }
       match /farmaciaItens/{docId} { allow read, write: if isMember(orgId); }
 
+      // Credenciais de integrações (hoje: WhatsApp — token de acesso da
+      // Meta escopado à clínica). Escritas só pelo Admin SDK
+      // (connectWhatsapp/disconnectWhatsapp) — o cliente nunca lê nem
+      // escreve aqui, nem mesmo os campos não-sigilosos; o status exposto
+      // à tela vem da callable getWhatsappStatus, que filtra o token.
+      match /integrations/{docId} { allow read, write: if false; }
+
       // Conversas de WhatsApp: criadas/preenchidas só pelo Admin SDK (Cloud
       // Functions whatsappWebhook/startConversation/sendWhatsappMessage), que
       // ignora estas regras. O cliente só lê e pode zerar unreadCount ao abrir
@@ -67,6 +74,14 @@ service cloud.firestore {
           allow write: if false;
         }
       }
+    }
+
+    // Mapeia phoneNumberId (WhatsApp) -> orgId, pra o webhook (que recebe
+    // mensagens sem saber de qual clínica são) achar a organização certa.
+    // Nunca lido/escrito pelo cliente — só pelo Admin SDK
+    // (connectWhatsapp/disconnectWhatsapp/whatsappWebhook).
+    match /whatsappPhoneRouting/{phoneNumberId} {
+      allow read, write: if false;
     }
   }
 }

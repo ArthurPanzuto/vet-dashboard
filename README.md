@@ -23,22 +23,24 @@ Abra `index.html` diretamente no navegador. Sem build, sem npm.
 
 Repita os passos 7 e 8 com um novo código de organização (ex: `clinica-sul`) e a allowlist daquela clínica. Cada organização fica automaticamente isolada das demais — não é preciso mexer no código do app.
 
-## Mensagens (WhatsApp Cloud API)
+## Mensagens (WhatsApp Cloud API + Embedded Signup)
 
-A aba "Mensagens" traz as conversas de WhatsApp com os tutores para dentro do painel. Como o token de acesso da Meta é secreto e não pode viver no `index.html` (é um arquivo público), essa funcionalidade depende de um pequeno backend em Firebase Cloud Functions (pasta `functions/`), que hoje não existe em nenhum outro ponto do app.
+A aba "Mensagens" traz as conversas de WhatsApp com os tutores para dentro do painel. Como o token de acesso da Meta é secreto e não pode viver no `index.html` (é um arquivo público), essa funcionalidade depende de um pequeno backend em Firebase Cloud Functions (pasta `functions/`).
 
-**Escopo atual: um único número de WhatsApp para uma única organização.** Se um dia for preciso um número por clínica, o `ORG_ID` fixo em `functions/index.js` precisará virar uma lógica de roteamento por número recebido.
+**Multi-tenant desde o início**: cada clínica conecta o próprio número de WhatsApp em Configurações → Integrações → WhatsApp Business, clicando em "Conectar WhatsApp" — sem nenhuma configuração manual por clínica do lado do administrador do DuoVet. Isso usa o **Embedded Signup** da Meta, o fluxo oficial pensado exatamente pra plataformas SaaS que atendem vários clientes. A configuração abaixo é feita **uma única vez**, no nível do App da Meta — depois disso, qualquer clínica nova só usa o botão.
 
-### 1. Do lado da Meta (fora deste repositório)
+### 1. Do lado da Meta (fora deste repositório) — feito uma vez, por quem administra o DuoVet
 
-1. Crie um App em https://developers.facebook.com/, adicione o produto **WhatsApp** e conecte-o ao número já usado no app comum do WhatsApp Business.
-2. Escolha **Coexistência** no onboarding (mantém o app do celular funcionando junto com a API) — a menos que você queira desativar o app e migrar de vez.
-3. Complete a verificação de empresa (Meta Business Manager) — pode levar de dias a semanas.
-4. Anote: **WABA ID**, **Phone Number ID**, um **access token permanente** (crie um System User em Business Settings → System Users, com permissão `whatsapp_business_messaging`) e escolha uma string qualquer para ser o `hub.verify_token` do webhook.
+1. Crie um App em https://developers.facebook.com/ (tipo "Empresa"), adicione o produto **WhatsApp**.
+2. Solicite acesso ao **Embedded Signup**: em Products → WhatsApp → Configuration (ou App Review, dependendo da versão do painel da Meta), peça a permissão avançada `whatsapp_business_management`. Isso passa por revisão da própria Meta — o prazo não é controlado por nós.
+3. Registre o App como **Tech Provider / Solution Partner** (parte do mesmo fluxo de habilitação do Embedded Signup).
+4. Complete a verificação de empresa (Meta Business Manager) — pode levar de dias a semanas.
+5. Crie uma **configuração de Embedded Signup** (Products → WhatsApp → Configuration → Embedded Signup) — isso gera o **Configuration ID**.
+6. Anote: **App ID** (público, na página inicial do App), **App Secret** (Configurações → Básico — esse sim é sigiloso) e escolha uma string qualquer para ser o `hub.verify_token` do webhook.
 
 ### 2. Upgrade do Firebase para o plano Blaze
 
-Cloud Functions com chamadas de saída (para a Graph API da Meta) exigem o plano pay-as-you-go. Em **Configurações do projeto → Uso e faturamento**, faça o upgrade de Spark para Blaze. O uso nesta escala (uma clínica) tende a ficar dentro da faixa gratuita mensal do Blaze, mas fica sujeito a cobrança por conversa da própria Meta.
+Cloud Functions com chamadas de saída (para a Graph API da Meta) exigem o plano pay-as-you-go. Em **Configurações do projeto → Uso e faturamento**, faça o upgrade de Spark para Blaze.
 
 ### 3. Configurar e publicar as Cloud Functions
 
@@ -48,28 +50,32 @@ firebase login
 cd functions && npm install && cd ..
 
 # Segredos (nunca vão para o repositório):
-firebase functions:secrets:set META_ACCESS_TOKEN
+firebase functions:secrets:set META_APP_SECRET
 firebase functions:secrets:set META_VERIFY_TOKEN
 
-# Variáveis não-secretas: copie functions/.env.example para functions/.env
-# e preencha WHATSAPP_ORG_ID (o orgId da clínica, ex: "duovet") e
-# WHATSAPP_PHONE_NUMBER_ID (Phone Number ID anotado no passo 1).
+# Variável não-secreta: copie functions/.env.example para functions/.env
+# e preencha META_APP_ID (o App ID anotado no passo 1).
 
 firebase deploy --only functions,firestore:rules
 ```
 
 O deploy imprime a URL da função `whatsappWebhook` (algo como `https://us-central1-<projeto>.cloudfunctions.net/whatsappWebhook`). Cole essa URL + o `META_VERIFY_TOKEN` escolhido no passo 1 na configuração de webhook do App da Meta (Products → WhatsApp → Configuration), e assine os campos `messages`.
 
-### 4. Testar
+### 4. Configurar o frontend
 
-- Abra o painel, vá em "Mensagens" — o card "Conexão do WhatsApp" no topo mostra o status real (consulta a função `getWhatsappStatus`): "não conectado" enquanto as functions não estiverem publicadas, "publicado mas não configurado" se faltar `WHATSAPP_ORG_ID`/`WHATSAPP_PHONE_NUMBER_ID`, e "configurado" quando os dois passos acima estiverem prontos. Não existe QR Code nem botão de "conectar" — clique em "Como configurar" pra ver este mesmo passo a passo direto na tela.
-- Envie uma mensagem de teste do celular da clínica para o número da API e confira se ela aparece em `organizations/{orgId}/conversations` no console do Firestore.
+Abra `index-beta.html` (ou `index.html`), procure o comentário `CONFIGURAÇÃO DO WHATSAPP (EMBEDDED SIGNUP) — COLE AQUI` (no `<head>`) e preencha `META_APP_ID` e `META_EMBEDDED_SIGNUP_CONFIG_ID` com os valores dos passos 1/5 acima. Nenhum dos dois é segredo.
+
+### 5. Testar
+
+- Vá em Configurações → Integrações — o card "WhatsApp Business" mostra "Aguardando configuração" enquanto os passos acima não estiverem prontos; depois disso, qualquer clínica logada vê "Desconectado" com o botão **Conectar WhatsApp**.
+- Clique em Conectar: abre o popup oficial da Meta (Embedded Signup), a clínica autoriza (ou cria) sua própria conta de WhatsApp Business, e a conexão é gravada automaticamente, escopada àquela organização (`organizations/{orgId}/integrations/whatsapp` — nunca lido/escrito pelo cliente, só pelas Cloud Functions).
+- Envie uma mensagem de teste do celular da clínica para o número conectado e confira se ela aparece em `organizations/{orgId}/conversations` no console do Firestore.
 - Responda por lá — confirme o recebimento no WhatsApp real.
 
 ### Limitações desta fase
 
 - **Janela de 24h**: fora dela, o WhatsApp só permite mensagens de modelo (template) pré-aprovadas pela Meta — enviar templates não está implementado ainda, só o aviso na tela.
-- Um único número/organização — ver nota de escopo acima.
+- O fluxo de Embedded Signup foi implementado seguindo a documentação da Meta na época da implementação (`developers.facebook.com/docs/whatsapp/embedded-signup`) — como a Meta versiona e ajusta esse fluxo com frequência, vale reconferir os nomes exatos de parâmetros/eventos contra a documentação atual antes do primeiro teste real.
 
 ## Publicação (GitHub Pages)
 

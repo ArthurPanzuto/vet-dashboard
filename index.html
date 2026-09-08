@@ -17,6 +17,7 @@
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-functions-compat.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://connect.facebook.net/en_US/sdk.js" async defer></script>
   <script>
     // ==================== CONFIGURAÇÃO DO GOOGLE CALENDAR — COLE AQUI ====================
     // Client ID gerado no Google Cloud Console (Credenciais > ID do cliente OAuth
@@ -26,6 +27,18 @@
     // aparece desativado (integração opcional, não bloqueia o resto do app).
     const GOOGLE_CALENDAR_CLIENT_ID = null; // Ex: "123456789-abc.apps.googleusercontent.com"
     const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
+    // ==================== CONFIGURAÇÃO DO WHATSAPP (EMBEDDED SIGNUP) — COLE AQUI ====================
+    // App ID do App da Meta (developers.facebook.com) com o Embedded Signup
+    // habilitado, e o Configuration ID gerado ao criar a configuração de
+    // Embedded Signup dentro desse App (Products > WhatsApp > Configuration).
+    // Nenhum dos dois é segredo — são identificadores públicos, como o Client
+    // ID do Google acima. Enquanto ficarem null, o card "WhatsApp Business"
+    // em Configurações > Integrações aparece como "Aguardando configuração"
+    // (nunca uma conexão fingida). O segredo de verdade (App Secret) fica só
+    // no backend, via `firebase functions:secrets:set META_APP_SECRET`.
+    const META_APP_ID = null; // Ex: "1234567890123456"
+    const META_EMBEDDED_SIGNUP_CONFIG_ID = null; // Ex: "9876543210987654"
 
     // ==================== CONFIGURAÇÃO DO FIREBASE — COLE AQUI ====================
     // Substitua os valores abaixo pelos do seu projeto (ver README.md, seção
@@ -1761,14 +1774,15 @@ canvas { max-width: 100%; }
                       <div class="integration-icon whatsapp"><i class="ti ti-brand-whatsapp"></i></div>
                       <div class="integration-body">
                         <div class="integration-name">WhatsApp Business</div>
-                        <div class="integration-desc">Conversas com tutores direto pela API oficial da Meta (aba Mensagens).</div>
+                        <div class="integration-desc">Conecte o WhatsApp da clínica pra conversar com tutores direto pelo DuoVet (aba Mensagens).</div>
                         <div class="integration-status-row">
                           <span class="integration-status">
-                            <span id="whatsapp-status-label" style="font-weight:700;font-size:13px"></span>
+                            <span id="whatsapp-status-badge" class="badge badge-low">Desconectado</span>
                           </span>
                           <div class="integration-actions">
-                            <button id="whatsapp-refresh-btn" type="button" class="btn-g"><i class="ti ti-refresh"></i> Verificar novamente</button>
-                            <button id="whatsapp-setup-btn" type="button" class="btn-p"><i class="ti ti-settings"></i> Como configurar</button>
+                            <button id="whatsapp-connect-btn" type="button" class="btn-p"><i class="ti ti-brand-whatsapp"></i> Conectar WhatsApp</button>
+                            <button id="whatsapp-disconnect-btn" type="button" class="btn-g hidden">Desconectar</button>
+                            <button id="whatsapp-setup-btn" type="button" class="btn-g hidden"><i class="ti ti-info-circle"></i> Detalhes</button>
                           </div>
                         </div>
                         <div id="whatsapp-status-sub" style="font-size:12px;color:var(--t3);margin-top:.5rem"></div>
@@ -2663,27 +2677,18 @@ canvas { max-width: 100%; }
     </div>
   </div>
 
-  <!-- ==================== MODAL: COMO CONFIGURAR O WHATSAPP (ver DuoVet.whatsappConnect / README.md) ==================== -->
+  <!-- ==================== MODAL: DETALHES DA CONEXÃO WHATSAPP (ver DuoVet.whatsappConnect / README.md) ==================== -->
   <div id="modal-whatsapp-connect" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:560px">
       <div class="modal-hd">
-        <h3><i class="ti ti-brand-whatsapp"></i> Como configurar a conexão real do WhatsApp</h3>
+        <h3><i class="ti ti-brand-whatsapp"></i> WhatsApp Business</h3>
         <button id="modal-whatsapp-close" type="button" class="modal-close" aria-label="Fechar"><i class="ti ti-x"></i></button>
       </div>
-      <div class="modal-body">
-        <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">
-          O DuoVet usa a API oficial do WhatsApp Business (Meta) — não existe QR Code nem login por aqui.
-          A conexão é configurada uma única vez no backend, por quem administra o projeto. Passo a passo completo em <code>README.md</code>.
-        </p>
-        <ol style="font-size:13px;line-height:1.9;padding-left:1.2rem;margin:0">
-          <li>Criar um app em <strong>developers.facebook.com</strong>, adicionar o produto WhatsApp e conectar ao número da clínica.</li>
-          <li>Completar a <strong>verificação da empresa</strong> no Meta Business Manager (pode levar dias).</li>
-          <li>Anotar o <strong>Phone Number ID</strong>, gerar um <strong>token de acesso permanente</strong> (System User com permissão <code>whatsapp_business_messaging</code>) e escolher um <strong>Verify Token</strong>.</li>
-          <li>Colocar o projeto Firebase no plano <strong>Blaze</strong> (necessário para chamadas de saída da Cloud Function).</li>
-          <li>Configurar os segredos e variáveis: <code>firebase functions:secrets:set META_ACCESS_TOKEN</code>, <code>META_VERIFY_TOKEN</code>, e preencher <code>WHATSAPP_ORG_ID</code>/<code>WHATSAPP_PHONE_NUMBER_ID</code> em <code>functions/.env</code>.</li>
-          <li>Publicar: <code>firebase deploy --only functions,firestore:rules</code>.</li>
-          <li>Colar a URL da função <code>whatsappWebhook</code> + o Verify Token na configuração de Webhook do app da Meta.</li>
-        </ol>
+      <div class="modal-body" id="modal-whatsapp-body">
+        <!-- Conteúdo preenchido por DuoVet.whatsappConnect conforme o estado:
+             configurado (detalhes da conexão da clínica) ou não configurado
+             (passos de setup do App da Meta, só relevantes pra quem
+             administra o DuoVet — não pro cliente final). -->
       </div>
     </div>
   </div>
@@ -3376,10 +3381,23 @@ DuoVet.state = (function () {
     return firebase.functions().httpsCallable("sendWhatsappMessage")({ conversationId, text });
   }
 
-  // Usada pelo card "Conexão do WhatsApp" da aba Mensagens pra mostrar status
-  // real (nunca simulado) — ver getWhatsappStatus em functions/index.js.
+  // Usada pelo card "WhatsApp Business" (Configurações > Integrações) pra
+  // mostrar status real (nunca simulado) — ver getWhatsappStatus em
+  // functions/index.js.
   function getWhatsappStatus() {
     return firebase.functions().httpsCallable("getWhatsappStatus")().then((result) => result.data);
+  }
+
+  // Chamada depois que o popup do Embedded Signup da Meta termina no
+  // navegador — troca o código de autorização por uma conexão real,
+  // escopada à organização de quem está logado (ver connectWhatsapp em
+  // functions/index.js).
+  function connectWhatsapp(code, wabaId, phoneNumberId) {
+    return firebase.functions().httpsCallable("connectWhatsapp")({ code, wabaId, phoneNumberId }).then((result) => result.data);
+  }
+
+  function disconnectWhatsapp() {
+    return firebase.functions().httpsCallable("disconnectWhatsapp")().then((result) => result.data);
   }
 
   // ---- API: categorias --------------------------------------------------------
@@ -3753,6 +3771,8 @@ DuoVet.state = (function () {
     startWhatsappConversation,
     sendWhatsappMessage,
     getWhatsappStatus,
+    connectWhatsapp,
+    disconnectWhatsapp,
     getBanhoTosaClientes,
     addBanhoTosaCliente,
     updateBanhoTosaCliente,
@@ -8813,56 +8833,219 @@ DuoVet.mensagens = (function () {
 })();
   </script>
   <script>
-// whatsappConnect.js — card "Conexão do WhatsApp" na aba Mensagens. Mostra o
-// status REAL do backend (via DuoVet.state.getWhatsappStatus, que chama a
-// Cloud Function getWhatsappStatus) — não existe QR Code nem "conectar" pelo
-// navegador: a API oficial do WhatsApp Business é configurada uma única vez
-// no backend (ver README.md). Três estados possíveis:
-// - "configured: true"  → backend com WHATSAPP_ORG_ID/PHONE_NUMBER_ID definidos.
-// - "configured: false" → função publicada, mas backend ainda sem configurar.
-// - chamada falha       → a própria função ainda não foi publicada (deploy
-//   pendente) ou não há conexão; tratamos os dois casos juntos, sem travar a
-//   aba (mesmo espírito de attachOptionalCollection em state.js).
+// whatsappConnect.js — card "WhatsApp Business" em Configurações > Integrações.
+// Conexão real via Embedded Signup da Meta (WhatsApp Business Platform) —
+// a clínica clica em "Conectar WhatsApp", autoriza no popup oficial da Meta,
+// e o backend (connectWhatsapp em functions/index.js) troca o código de
+// autorização por um token escopado àquela clínica. Nenhum token passa
+// pelo navegador em momento algum. Três estados reais:
+// - App da Meta ainda sem Embedded Signup habilitado (META_APP_ID/
+//   META_EMBEDDED_SIGNUP_CONFIG_ID nulos) → "Aguardando configuração".
+// - Habilitado, mas esta clínica ainda não conectou → "Desconectado" + botão Conectar.
+// - Esta clínica já conectou → "Conectado" + botão Desconectar.
 window.DuoVet = window.DuoVet || {};
 
 DuoVet.whatsappConnect = (function () {
-  function renderChecking() {
-    const label = document.getElementById("whatsapp-status-label");
-    const sub = document.getElementById("whatsapp-status-sub");
-    if (!label) return;
-    label.innerHTML = '<span style="color:var(--t3)"><i class="ti ti-loader-2"></i> Verificando conexão...</span>';
-    sub.textContent = "";
+  let lastStatus = null;
+  let fbInitialized = false;
+  let pendingCode = null;
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    document.getElementById("toast-text").textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => toast.classList.remove("show"), 2800);
   }
 
-  function renderResult(status) {
-    const label = document.getElementById("whatsapp-status-label");
-    const sub = document.getElementById("whatsapp-status-sub");
-    if (!label) return;
+  function isConfigured() {
+    return typeof META_APP_ID === "string" && META_APP_ID.length > 0
+      && typeof META_EMBEDDED_SIGNUP_CONFIG_ID === "string" && META_EMBEDDED_SIGNUP_CONFIG_ID.length > 0;
+  }
 
-    if (status?.configured) {
-      label.innerHTML = '<span style="color:var(--green)"><i class="ti ti-circle-check-filled"></i> Backend do WhatsApp configurado</span>';
-      sub.textContent = "As mensagens enviadas por aqui usam a API oficial do WhatsApp Business. Se algo não chegar, confira o token de acesso e a janela de 24h.";
-    } else if (status && status.configured === false) {
-      label.innerHTML = '<span style="color:var(--amber)"><i class="ti ti-alert-triangle"></i> Backend publicado, mas não configurado</span>';
-      sub.textContent = "A função já está no ar, mas faltam as credenciais da Meta (WHATSAPP_ORG_ID/WHATSAPP_PHONE_NUMBER_ID). Clique em \"Como configurar\".";
-    } else {
-      label.innerHTML = '<span style="color:var(--t3)"><i class="ti ti-circle-dashed"></i> WhatsApp não conectado</span>';
-      sub.textContent = "As Cloud Functions do WhatsApp ainda não foram publicadas neste projeto. Clique em \"Como configurar\" para ver os passos necessários.";
+  function updateCardUI() {
+    const badge = document.getElementById("whatsapp-status-badge");
+    const sub = document.getElementById("whatsapp-status-sub");
+    const connectBtn = document.getElementById("whatsapp-connect-btn");
+    const disconnectBtn = document.getElementById("whatsapp-disconnect-btn");
+    const setupBtn = document.getElementById("whatsapp-setup-btn");
+    if (!badge) return;
+
+    if (!isConfigured()) {
+      badge.textContent = "Em breve";
+      badge.className = "badge badge-low";
+      sub.textContent = "A conexão direta com o WhatsApp está sendo preparada. Toque em \"Ver tutorial\" para saber como vai funcionar.";
+      connectBtn.classList.add("hidden");
+      disconnectBtn.classList.add("hidden");
+      setupBtn.classList.remove("hidden");
+      setupBtn.innerHTML = '<i class="ti ti-book"></i> Ver tutorial';
+      return;
     }
+
+    const connected = !!lastStatus?.configured;
+    badge.textContent = connected ? "Conectado" : "Desconectado";
+    badge.className = connected ? "badge badge-ok" : "badge badge-low";
+    connectBtn.classList.toggle("hidden", connected);
+    disconnectBtn.classList.toggle("hidden", !connected);
+    setupBtn.classList.toggle("hidden", !connected);
+    setupBtn.innerHTML = '<i class="ti ti-info-circle"></i> Detalhes';
+    sub.textContent = connected
+      ? `${lastStatus.businessName || "Conectado"}${lastStatus.phoneNumber ? " · " + lastStatus.phoneNumber : ""}`
+      : 'Toque em "Conectar WhatsApp" para autorizar o número da clínica.';
   }
 
   function checkStatus() {
-    renderChecking();
+    if (!isConfigured()) {
+      lastStatus = null;
+      updateCardUI();
+      return Promise.resolve();
+    }
     return DuoVet.state
       .getWhatsappStatus()
-      .then(renderResult)
+      .then((status) => { lastStatus = status; updateCardUI(); })
       .catch((error) => {
         console.warn("DuoVet: getWhatsappStatus indisponível (função ainda não publicada?).", error);
-        renderResult(null);
+        lastStatus = { configured: false };
+        updateCardUI();
+      });
+  }
+
+  // Carrega o SDK JS da Meta sob demanda (lazy) em vez de depender do hook
+  // global fbAsyncInit — evita corrida entre o <script async> e este código,
+  // já que só precisamos do FB.login no clique, nunca no carregamento da página.
+  function ensureFbSdk() {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function poll() {
+        if (typeof FB !== "undefined") {
+          if (!fbInitialized) {
+            FB.init({ appId: META_APP_ID, version: "v20.0", xfbml: false });
+            fbInitialized = true;
+          }
+          resolve();
+        } else if (Date.now() - start > 8000) {
+          reject(new Error("Não foi possível carregar o SDK da Meta. Verifique sua conexão e tente novamente."));
+        } else {
+          setTimeout(poll, 150);
+        }
+      })();
+    });
+  }
+
+  // Fluxo documentado pela Meta pro Embedded Signup: FB.login devolve um
+  // código de autorização (response_type "code"), e os detalhes da WABA/
+  // número conectado chegam via postMessage (evento "WA_EMBEDDED_SIGNUP").
+  // Nomes de campos conferidos com a documentação em
+  // developers.facebook.com/docs/whatsapp/embedded-signup no momento da
+  // implementação — reconferir se a Meta tiver mudado o formato.
+  function waitForEmbeddedSignupEvent() {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        window.removeEventListener("message", handler);
+        reject(new Error("Tempo esgotado aguardando a confirmação da Meta."));
+      }, 120000);
+
+      function handler(event) {
+        if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
+        let data;
+        try { data = JSON.parse(event.data); } catch { return; }
+        if (data.type !== "WA_EMBEDDED_SIGNUP") return;
+        if (data.event === "FINISH") {
+          clearTimeout(timeout);
+          window.removeEventListener("message", handler);
+          resolve({ wabaId: data.data?.waba_id, phoneNumberId: data.data?.phone_number_id });
+        } else if (data.event === "CANCEL" || data.event === "ERROR") {
+          clearTimeout(timeout);
+          window.removeEventListener("message", handler);
+          reject(new Error("Conexão com o WhatsApp cancelada."));
+        }
+      }
+      window.addEventListener("message", handler);
+    });
+  }
+
+  function connect() {
+    if (!isConfigured()) return;
+    ensureFbSdk()
+      .then(
+        () =>
+          new Promise((resolve, reject) => {
+            FB.login(
+              (response) => {
+                if (!response.authResponse || !response.authResponse.code) {
+                  reject(new Error("Autorização cancelada ou não concluída."));
+                  return;
+                }
+                pendingCode = response.authResponse.code;
+                resolve();
+              },
+              {
+                config_id: META_EMBEDDED_SIGNUP_CONFIG_ID,
+                response_type: "code",
+                override_default_response_type: true,
+                extras: { sessionInfoVersion: "3" },
+              }
+            );
+          })
+      )
+      .then(() => waitForEmbeddedSignupEvent())
+      .then(({ wabaId, phoneNumberId }) => {
+        if (!pendingCode || !wabaId || !phoneNumberId) {
+          throw new Error("Não recebemos os dados esperados da Meta pra concluir a conexão.");
+        }
+        return DuoVet.state.connectWhatsapp(pendingCode, wabaId, phoneNumberId);
+      })
+      .then(() => {
+        pendingCode = null;
+        showToast("WhatsApp conectado com sucesso!");
+        return checkStatus();
+      })
+      .catch((err) => {
+        pendingCode = null;
+        console.error("DuoVet: falha ao conectar WhatsApp.", err);
+        showToast(err.message || "Não foi possível conectar o WhatsApp agora.");
+      });
+  }
+
+  function disconnect() {
+    DuoVet.state
+      .disconnectWhatsapp()
+      .then(() => {
+        showToast("WhatsApp desconectado.");
+        return checkStatus();
+      })
+      .catch((err) => {
+        console.error("DuoVet: falha ao desconectar WhatsApp.", err);
+        showToast(err.message || "Não foi possível desconectar agora.");
       });
   }
 
   function openSetupModal() {
+    const body = document.getElementById("modal-whatsapp-body");
+    if (isConfigured() && lastStatus?.configured) {
+      body.innerHTML = `
+        <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">Conexão ativa com o WhatsApp oficial da clínica.</p>
+        <div class="aparencia-row"><div class="aparencia-info"><div class="modulo-nome">Número conectado</div><div class="modulo-desc">${lastStatus.phoneNumber || "—"}</div></div></div>
+        <div class="aparencia-row"><div class="aparencia-info"><div class="modulo-nome">Conta comercial</div><div class="modulo-desc">${lastStatus.businessName || "—"}</div></div></div>
+        <p style="font-size:12px;color:var(--t3);margin-top:1rem">Se ficar mais de 24h sem responder um tutor, o WhatsApp exige uma mensagem de modelo pré-aprovada pra retomar a conversa (recurso ainda não disponível nesta versão).</p>`;
+    } else {
+      // Tutorial pensado pro funcionário/administrador da clínica — nada de
+      // termos técnicos de desenvolvedor (isso fica só no README.md, pra
+      // quem administra o DuoVet). Descreve, em linguagem simples, como vai
+      // funcionar quando a conexão direta estiver disponível.
+      body.innerHTML = `
+        <p style="font-size:12.5px;color:var(--t3);margin-bottom:1rem">A conexão direta com o WhatsApp ainda está sendo preparada. Veja como vai funcionar assim que estiver disponível:</p>
+        <ol style="font-size:13px;line-height:1.85;padding-left:1.2rem;margin:0">
+          <li><strong>O que você vai precisar:</strong> um número de telefone só pra clínica usar no WhatsApp (não pode ser o mesmo número já em uso no aplicativo comum do WhatsApp) e acesso a uma conta do Facebook/Instagram da empresa — se a clínica não tiver uma, dá pra criar na hora.</li>
+          <li><strong>Onde acessar:</strong> aqui mesmo, em Configurações → Integrações → WhatsApp Business — nenhum outro site ou aplicativo será necessário.</li>
+          <li><strong>O que configurar antes:</strong> nada técnico — só ter em mãos o número de telefone e o nome da clínica.</li>
+          <li><strong>Como iniciar a conexão:</strong> clicar no botão "Conectar WhatsApp". Vai abrir uma janela oficial da Meta (empresa dona do WhatsApp) pra continuar por lá.</li>
+          <li><strong>Quais autorizações serão pedidas:</strong> só a confirmação de que a clínica permite que o DuoVet envie e receba mensagens em nome dela — parecido com o "permitir acesso" que aparece em outros aplicativos conhecidos.</li>
+          <li><strong>Como saber se conectou:</strong> o status aqui no card muda de "Desconectado" para "Conectado", mostrando o número e o nome da clínica.</li>
+          <li><strong>Se algo der errado:</strong> clique em "Conectar WhatsApp" novamente. Se o problema continuar, entre em contato com o suporte do DuoVet informando a mensagem que apareceu na tela.</li>
+        </ol>`;
+    }
     document.getElementById("modal-whatsapp-connect").classList.remove("hidden");
   }
 
@@ -8871,15 +9054,16 @@ DuoVet.whatsappConnect = (function () {
   }
 
   function init() {
-    const refreshBtn = document.getElementById("whatsapp-refresh-btn");
-    if (!refreshBtn) return;
-    refreshBtn.addEventListener("click", checkStatus);
+    const connectBtn = document.getElementById("whatsapp-connect-btn");
+    if (!connectBtn) return;
+    connectBtn.addEventListener("click", connect);
+    document.getElementById("whatsapp-disconnect-btn").addEventListener("click", disconnect);
     document.getElementById("whatsapp-setup-btn").addEventListener("click", openSetupModal);
     document.getElementById("modal-whatsapp-close").addEventListener("click", closeSetupModal);
     checkStatus();
   }
 
-  return { init };
+  return { init, isConfigured };
 })();
   </script>
   <script>
